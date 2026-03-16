@@ -1,0 +1,86 @@
+# ===========================
+# Node.js (backend)
+# ===========================
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+.npm
+.node_repl_history
+
+# Build output
+backend/dist/
+backend/build/
+
+# Environment variables
+.env
+.env.local
+.env.*.local
+backend/.env
+backend/.env.*
+
+# ===========================
+# Flutter / Dart (mobile)
+# ===========================
+# Flutter build outputs
+mobile/build/
+mobile/.dart_tool/
+mobile/.flutter-plugins
+mobile/.flutter-plugins-dependencies
+mobile/.pub-cache/
+mobile/.pub/
+
+# Dart
+mobile/.packages
+mobile/pubspec.lock
+
+# Android
+mobile/android/.gradle/
+mobile/android/local.properties
+mobile/android/key.properties
+mobile/android/app/debug/
+mobile/android/app/release/
+mobile/android/app/profile/
+mobile/android/captures/
+mobile/android/.idea/
+mobile/android/*.iml
+
+# iOS
+mobile/ios/.symlinks/
+mobile/ios/Flutter/flutter_export_environment.sh
+mobile/ios/Flutter/Generated.xcconfig
+mobile/ios/Pods/
+mobile/ios/Podfile.lock
+mobile/ios/.idea/
+
+# macOS
+mobile/macos/Flutter/GeneratedPluginRegistrant.swift
+mobile/macos/Flutter/ephemeral/
+
+# Web
+mobile/web/
+
+# ===========================
+# IDE / Editors
+# ===========================
+.idea/
+.vscode/
+*.swp
+*.swo
+.DS_Store
+Thumbs.db
+
+# ===========================
+# Logs & OS artifacts
+# ===========================
+logs/
+*.log
+*.pid
+*.seed
+*.pid.lock
+
+# ===========================
+# AWS / Cloud credentials
+# ===========================
+.aws/
+credentials
