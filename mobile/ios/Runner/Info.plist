@@ -26,6 +26,17 @@
 	<string>$(FLUTTER_BUILD_NUMBER)</string>
 	<key>LSRequiresIPhoneOS</key>
 	<true/>
+	<!-- Camera & photo library for body photo uploads -->
+	<key>NSCameraUsageDescription</key>
+	<string>Take body progress photos to track your fitness journey</string>
+	<key>NSPhotoLibraryUsageDescription</key>
+	<string>Select body progress photos from your library</string>
+	<!-- Allow HTTP API calls and YouTube player (switch to HTTPS in production) -->
+	<key>NSAppTransportSecurity</key>
+	<dict>
+		<key>NSAllowsArbitraryLoads</key>
+		<true/>
+	</dict>
 	<key>UIApplicationSceneManifest</key>
 	<dict>
 		<key>UIApplicationSupportsMultipleScenes</key>

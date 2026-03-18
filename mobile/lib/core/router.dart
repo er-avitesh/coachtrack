@@ -22,6 +22,7 @@ import '../screens/coach/coach_dashboard_screen.dart';
 import '../screens/coach/client_profile_screen.dart';
 import '../screens/coach/assign_diet_screen.dart';
 import '../screens/coach/assign_workout_screen.dart';
+import '../screens/coach/assign_lifestyle_screen.dart';
 import '../screens/coach/add_tips_screen.dart';
 
 GoRouter buildRouter(AuthProvider auth) {
@@ -69,6 +70,12 @@ GoRouter buildRouter(AuthProvider auth) {
       GoRoute(
         path: '/coach/client/:id/workout',
         builder: (_, state) => AssignWorkoutScreen(
+          clientId: int.parse(state.pathParameters['id']!),
+        ),
+      ),
+      GoRoute(
+        path: '/coach/client/:id/lifestyle',
+        builder: (_, state) => AssignLifestyleScreen(
           clientId: int.parse(state.pathParameters['id']!),
         ),
       ),

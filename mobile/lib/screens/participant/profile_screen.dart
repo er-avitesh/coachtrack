@@ -28,6 +28,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
   String? _activity;
   String? _dietPref;
   String? _familyType;
+  String? _healthGoal;
   DateTime? _dob;
   int _familyCount = 1;
   bool _loading = true;
@@ -53,6 +54,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
           _activity    = p['activity_level'];
           _dietPref    = p['diet_preference'];
           _familyType  = p['family_type'];
+          _healthGoal  = p['health_goal'];
           _familyCount = p['family_members_count'] ?? 1;
           if (p['dob'] != null) _dob = DateTime.tryParse(p['dob']);
         });
@@ -71,6 +73,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
         'current_weight_kg':    double.tryParse(_currWtCtrl.text),
         'goal_weight_kg':       double.tryParse(_goalWtCtrl.text),
         'activity_level':       _activity,
+        'health_goal':          _healthGoal,
         'health_conditions':    _healthCtrl.text.isNotEmpty ? _healthCtrl.text : null,
         'medications':          _medCtrl.text.isNotEmpty ? _medCtrl.text : null,
         'injuries':             _injuryCtrl.text.isNotEmpty ? _injuryCtrl.text : null,

@@ -12,7 +12,8 @@ const dietRoutes     = require('./routes/diet');
 const workoutRoutes  = require('./routes/workout');
 const tipsRoutes     = require('./routes/tips');
 const photoRoutes    = require('./routes/photos');
-const coachRoutes    = require('./routes/coach');
+const coachRoutes     = require('./routes/coach');
+const lifestyleRoutes = require('./routes/lifestyle');
 
 const app = express();
 
@@ -31,7 +32,8 @@ app.use('/api/diet',     dietRoutes);
 app.use('/api/workout',  workoutRoutes);
 app.use('/api/tips',     tipsRoutes);
 app.use('/api/photos',   photoRoutes);
-app.use('/api/coach',    coachRoutes);
+app.use('/api/coach',     coachRoutes);
+app.use('/api/lifestyle', lifestyleRoutes);
 
 // ── Health check ──────────────────────────────────────────
 app.get('/health', (req, res) => res.json({ status: 'ok', timestamp: new Date() }));

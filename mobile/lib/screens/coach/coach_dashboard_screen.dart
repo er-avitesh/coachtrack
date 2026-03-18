@@ -159,9 +159,9 @@ class _CoachDashboardScreenState extends State<CoachDashboardScreen> {
     return Container(
       padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
-        color: color.withOpacity(0.08),
+        color: color.withValues(alpha: 0.08),
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: color.withOpacity(0.2)),
+        border: Border.all(color: color.withValues(alpha: 0.2)),
       ),
       child: Row(
         children: [
@@ -197,7 +197,7 @@ class _CoachDashboardScreenState extends State<CoachDashboardScreen> {
             children: [
               CircleAvatar(
                 radius: 24,
-                backgroundColor: const Color(AppConstants.primaryColor).withOpacity(0.12),
+                backgroundColor: const Color(AppConstants.primaryColor).withValues(alpha: 0.12),
                 child: Text(initials,
                   style: const TextStyle(
                     fontWeight: FontWeight.bold,
@@ -261,7 +261,7 @@ class _CoachDashboardScreenState extends State<CoachDashboardScreen> {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
       decoration: BoxDecoration(
-        color: color.withOpacity(0.1),
+        color: color.withValues(alpha: 0.1),
         borderRadius: BorderRadius.circular(6),
       ),
       child: Text(text, style: TextStyle(fontSize: 11, color: color, fontWeight: FontWeight.w500)),

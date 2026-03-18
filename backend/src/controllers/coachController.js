@@ -60,9 +60,9 @@ const getClientSummary = async (req, res) => {
     const coachId  = req.user.id;
     const clientId = parseInt(req.params.id);
 
-    // Verify this client belongs to this coach
+    // Verify this client belongs to this coach + fetch program dates
     const access = await db.query(
-      'SELECT id FROM coach_clients WHERE coach_id = $1 AND participant_id = $2',
+      'SELECT id, program_start_date, program_end_date FROM coach_clients WHERE coach_id = $1 AND participant_id = $2',
       [coachId, clientId]
     );
 
@@ -125,7 +125,11 @@ const getClientSummary = async (req, res) => {
 
     res.json({
       success: true,
-      client: userResult.rows[0],
+      client: {
+        ...userResult.rows[0],
+        program_start_date: access.rows[0].program_start_date,
+        program_end_date:   access.rows[0].program_end_date,
+      },
       tracking: tracking.rows,
       diet_plan: dietPlan.rows[0] || null,
       workout_plan: workoutPlan.rows[0] || null,
@@ -137,4 +141,24 @@ const getClientSummary = async (req, res) => {
   }
 };
 
-module.exports = { getClients, addClient, getClientSummary };
+const updateProgramDates = async (req, res) => {
+  try {
+    const coachId  = req.user.id;
+    const clientId = parseInt(req.params.id);
+    const { program_start_date, program_end_date } = req.body;
+    const result = await db.query(
+      `UPDATE coach_clients SET program_start_date = $1, program_end_date = $2
+       WHERE coach_id = $3 AND participant_id = $4 RETURNING id`,
+      [program_start_date || null, program_end_date || null, coachId, clientId]
+    );
+    if (result.rows.length === 0) {
+      return res.status(403).json({ success: false, message: 'Access denied' });
+    }
+    res.json({ success: true });
+  } catch (err) {
+    console.error('Update program dates error:', err);
+    res.status(500).json({ success: false, message: 'Server error' });
+  }
+};
+
+module.exports = { getClients, addClient, getClientSummary, updateProgramDates };

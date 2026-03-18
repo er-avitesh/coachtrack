@@ -1,61 +1,46 @@
 // src/controllers/workoutController.js
 const db = require('../db');
 
-// GET /api/workout/exercises  - list exercise library
 const listExercises = async (req, res) => {
   try {
     const { muscle_group } = req.query;
-    let query = 'SELECT * FROM exercises';
-    let params = [];
-
-    if (muscle_group) {
-      query += ' WHERE muscle_group ILIKE $1';
-      params = [`%${muscle_group}%`];
-    }
-
+    let query = 'SELECT * FROM exercises'; let params = [];
+    if (muscle_group) { query += ' WHERE muscle_group ILIKE $1'; params = [`%${muscle_group}%`]; }
     query += ' ORDER BY muscle_group, exercise_name';
     const result = await db.query(query, params);
     res.json({ success: true, exercises: result.rows });
-  } catch (err) {
-    res.status(500).json({ success: false, message: 'Server error' });
-  }
+  } catch (err) { res.status(500).json({ success: false, message: 'Server error' }); }
 };
 
-// POST /api/workout/assign  (coach only)
 const assignWorkout = async (req, res) => {
   try {
     const coachId = req.user.id;
-    const { participant_id, plan_name, exercises } = req.body;
-    // exercises = [{ exercise_id, sets, reps, notes, order_index }, ...]
-
-    if (!participant_id || !exercises || !Array.isArray(exercises)) {
-      return res.status(400).json({ success: false, message: 'participant_id and exercises array required' });
+    const { participant_id, plan_name, days, start_date, end_date } = req.body;
+    if (!participant_id || !days || !Array.isArray(days) || days.length === 0) {
+      return res.status(400).json({ success: false, message: 'participant_id and days array required' });
     }
-
-    // Deactivate existing
-    await db.query(
-      'UPDATE workout_plans SET is_active = false WHERE participant_id = $1',
-      [participant_id]
-    );
-
+    await db.query('UPDATE workout_plans SET is_active = false WHERE participant_id = $1', [participant_id]);
     const planResult = await db.query(
-      `INSERT INTO workout_plans (participant_id, coach_id, plan_name)
-       VALUES ($1, $2, $3) RETURNING *`,
-      [participant_id, coachId, plan_name || 'Current Workout']
+      `INSERT INTO workout_plans (participant_id, coach_id, plan_name, total_days, start_date, end_date) VALUES ($1,$2,$3,$4,$5,$6) RETURNING *`,
+      [participant_id, coachId, plan_name || 'Workout Plan', days.length, start_date || null, end_date || null]
     );
-
     const planId = planResult.rows[0].id;
-
-    for (let i = 0; i < exercises.length; i++) {
-      const ex = exercises[i];
-      await db.query(
-        `INSERT INTO workout_plan_exercises (workout_plan_id, exercise_id, sets, reps, notes, order_index)
-         VALUES ($1, $2, $3, $4, $5, $6)`,
-        [planId, ex.exercise_id, ex.sets || 3, ex.reps || 10, ex.notes || null, i]
+    for (let d = 0; d < days.length; d++) {
+      const day = days[d];
+      const dayResult = await db.query(
+        `INSERT INTO workout_days (workout_plan_id, day_number, day_name, order_index) VALUES ($1,$2,$3,$4) RETURNING id`,
+        [planId, d + 1, day.day_name, d]
       );
+      const dayId = dayResult.rows[0].id;
+      for (let e = 0; e < (day.exercises || []).length; e++) {
+        const ex = day.exercises[e];
+        await db.query(
+          `INSERT INTO workout_day_exercises (workout_day_id, exercise_id, sets, reps, notes, order_index) VALUES ($1,$2,$3,$4,$5,$6)`,
+          [dayId, ex.exercise_id, ex.sets || 3, ex.reps || 10, ex.notes || null, e]
+        );
+      }
     }
-
-    const fullPlan = await getPlanWithExercises(planId);
+    const fullPlan = await getPlanWithDays(planId);
     res.status(201).json({ success: true, workout_plan: fullPlan });
   } catch (err) {
     console.error('Assign workout error:', err);
@@ -63,23 +48,16 @@ const assignWorkout = async (req, res) => {
   }
 };
 
-// GET /api/workout/get
 const getWorkout = async (req, res) => {
   try {
     const targetId = (req.user.role === 'coach' && req.query.user_id)
-      ? parseInt(req.query.user_id)
-      : req.user.id;
-
+      ? parseInt(req.query.user_id) : req.user.id;
     const planResult = await db.query(
       'SELECT id FROM workout_plans WHERE participant_id = $1 AND is_active = true ORDER BY created_at DESC LIMIT 1',
       [targetId]
     );
-
-    if (planResult.rows.length === 0) {
-      return res.json({ success: true, workout_plan: null });
-    }
-
-    const plan = await getPlanWithExercises(planResult.rows[0].id);
+    if (planResult.rows.length === 0) return res.json({ success: true, workout_plan: null });
+    const plan = await getPlanWithDays(planResult.rows[0].id);
     res.json({ success: true, workout_plan: plan });
   } catch (err) {
     console.error('Get workout error:', err);
@@ -87,17 +65,45 @@ const getWorkout = async (req, res) => {
   }
 };
 
-async function getPlanWithExercises(planId) {
-  const plan = await db.query('SELECT * FROM workout_plans WHERE id = $1', [planId]);
-  const exercises = await db.query(
-    `SELECT wpe.*, e.exercise_name, e.muscle_group, e.description
-     FROM workout_plan_exercises wpe
-     JOIN exercises e ON e.id = wpe.exercise_id
-     WHERE wpe.workout_plan_id = $1
-     ORDER BY wpe.order_index`,
-    [planId]
-  );
-  return { ...plan.rows[0], exercises: exercises.rows };
+async function getPlanWithDays(planId) {
+  const [planResult, daysResult, exResult] = await Promise.all([
+    db.query('SELECT * FROM workout_plans WHERE id = $1', [planId]),
+    db.query('SELECT * FROM workout_days WHERE workout_plan_id = $1 ORDER BY order_index', [planId]),
+    db.query(
+      `SELECT wde.*, e.exercise_name, e.muscle_group, e.description, e.youtube_video_id
+       FROM workout_day_exercises wde
+       JOIN exercises e ON e.id = wde.exercise_id
+       JOIN workout_days wd ON wd.id = wde.workout_day_id
+       WHERE wd.workout_plan_id = $1
+       ORDER BY wd.order_index, wde.order_index`,
+      [planId]
+    ),
+  ]);
+
+  const exByDay = {};
+  for (const ex of exResult.rows) {
+    (exByDay[ex.workout_day_id] ??= []).push(ex);
+  }
+
+  return {
+    ...planResult.rows[0],
+    days: daysResult.rows.map(day => ({ ...day, exercises: exByDay[day.id] ?? [] })),
+  };
 }
 
-module.exports = { listExercises, assignWorkout, getWorkout };
+const updateExerciseVideo = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { youtube_video_id } = req.body;
+    await db.query(
+      'UPDATE exercises SET youtube_video_id = $1 WHERE id = $2',
+      [youtube_video_id || null, id]
+    );
+    res.json({ success: true });
+  } catch (err) {
+    console.error('Update exercise video error:', err);
+    res.status(500).json({ success: false, message: 'Server error' });
+  }
+};
+
+module.exports = { listExercises, assignWorkout, getWorkout, updateExerciseVideo };

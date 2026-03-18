@@ -5,7 +5,7 @@ const db = require('../db');
 const assignDiet = async (req, res) => {
   try {
     const coachId = req.user.id;
-    const { participant_id, plan_name, meals } = req.body;
+    const { participant_id, plan_name, meals, start_date, end_date } = req.body;
     // meals = [{ meal_slot, calories, protein_g, carbs_g, fat_g }, ...]
 
     if (!participant_id || !meals || !Array.isArray(meals)) {
@@ -20,9 +20,9 @@ const assignDiet = async (req, res) => {
 
     // Create new plan
     const planResult = await db.query(
-      `INSERT INTO diet_plans (participant_id, coach_id, plan_name)
-       VALUES ($1, $2, $3) RETURNING *`,
-      [participant_id, coachId, plan_name || 'Current Plan']
+      `INSERT INTO diet_plans (participant_id, coach_id, plan_name, start_date, end_date)
+       VALUES ($1, $2, $3, $4, $5) RETURNING *`,
+      [participant_id, coachId, plan_name || 'Current Plan', start_date || null, end_date || null]
     );
 
     const planId = planResult.rows[0].id;

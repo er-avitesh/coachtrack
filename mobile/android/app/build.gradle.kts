@@ -24,7 +24,7 @@ android {
         applicationId = "com.example.coachtrack"
         // You can update the following values to match your application needs.
         // For more information, see: https://flutter.dev/to/review-gradle-config.
-        minSdk = flutter.minSdkVersion
+        minSdk = 21  // flutter_secure_storage + youtube_player_iframe require >= 21
         targetSdk = flutter.targetSdkVersion
         versionCode = flutter.versionCode
         versionName = flutter.versionName

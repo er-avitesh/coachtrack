@@ -63,7 +63,7 @@ class _AddTipsScreenState extends State<AddTipsScreen> {
             padding: const EdgeInsets.all(16),
             decoration: BoxDecoration(
               color: Colors.white,
-              boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.04), blurRadius: 8)],
+              boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.04), blurRadius: 8)],
             ),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,

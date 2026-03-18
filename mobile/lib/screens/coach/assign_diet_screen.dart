@@ -51,7 +51,6 @@ class _AssignDietScreenState extends State<AssignDietScreen> {
             _slots[slot]!['fat']!.text      = meal['fat_g'].toString();
           }
         }
-        setState(() {});
       }
     } catch (_) {}
   }
@@ -121,7 +120,7 @@ class _AssignDietScreenState extends State<AssignDietScreen> {
               prefixIcon: Icon(Icons.restaurant_menu),
             ),
           ),
-          const SizedBox(height: 8),
+          const SizedBox(height: 16),
           const Text(
             'Enter macro targets for each meal slot. Leave empty to skip a slot.',
             style: TextStyle(fontSize: 12, color: Color(AppConstants.textSecondary)),
@@ -214,9 +213,9 @@ class _AssignDietScreenState extends State<AssignDietScreen> {
     return Container(
       padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
-        color: const Color(AppConstants.primaryColor).withOpacity(0.05),
+        color: const Color(AppConstants.primaryColor).withValues(alpha: 0.05),
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: const Color(AppConstants.primaryColor).withOpacity(0.2)),
+        border: Border.all(color: const Color(AppConstants.primaryColor).withValues(alpha: 0.2)),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
