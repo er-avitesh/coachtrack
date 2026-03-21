@@ -2,7 +2,7 @@
 
 class AppConstants {
   // Change this to your deployed API URL
-  static const String baseUrl = 'http://localhost:3000/api';
+  static const String baseUrl = 'https://13-222-134-135.sslip.io/api';
 
   // Storage keys
   static const String tokenKey    = 'auth_token';

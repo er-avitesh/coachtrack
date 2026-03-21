@@ -1,4 +1,9 @@
 # ===========================
+# Deployment (contains secrets)
+# ===========================
+deploy/userdata.sh
+
+# ===========================
 # Node.js (backend)
 # ===========================
 node_modules/

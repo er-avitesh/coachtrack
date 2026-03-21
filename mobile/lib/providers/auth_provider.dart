@@ -1,14 +1,13 @@
 // lib/providers/auth_provider.dart
 import 'dart:convert';
 import 'package:flutter/material.dart';
-import 'package:flutter_secure_storage/flutter_secure_storage.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import '../models/models.dart';
 import '../services/api_service.dart';
 import '../core/constants.dart';
 
 class AuthProvider extends ChangeNotifier {
-  final _api     = ApiService();
-  final _storage = const FlutterSecureStorage();
+  final _api = ApiService();
 
   User?  _user;
   bool   _loading = false;
@@ -23,7 +22,8 @@ class AuthProvider extends ChangeNotifier {
   // Load stored session on app start
   Future<void> initialize() async {
     await _api.loadToken();
-    final stored = await _storage.read(key: AppConstants.userKey);
+    final prefs = await SharedPreferences.getInstance();
+    final stored = prefs.getString(AppConstants.userKey);
     if (stored != null) {
       try {
         _user = User.fromJson(jsonDecode(stored));
@@ -45,10 +45,8 @@ class AuthProvider extends ChangeNotifier {
 
       await _api.saveToken(res['token']);
       _user = User.fromJson(res['user']);
-      await _storage.write(
-        key: AppConstants.userKey,
-        value: jsonEncode(res['user']),
-      );
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setString(AppConstants.userKey, jsonEncode(res['user']));
       _loading = false;
       notifyListeners();
       return true;
@@ -82,10 +80,8 @@ class AuthProvider extends ChangeNotifier {
 
       await _api.saveToken(res['token']);
       _user = User.fromJson(res['user']);
-      await _storage.write(
-        key: AppConstants.userKey,
-        value: jsonEncode(res['user']),
-      );
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setString(AppConstants.userKey, jsonEncode(res['user']));
       _loading = false;
       notifyListeners();
       return true;

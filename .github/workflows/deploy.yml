@@ -1,0 +1,60 @@
+name: Deploy
+
+on:
+  push:
+    branches: [master]
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      # ── Flutter web build ──────────────────────────────────────────────────
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: '3.x'
+          channel: stable
+          cache: true
+
+      - name: Build Flutter web
+        working-directory: mobile
+        run: |
+          flutter pub get
+          flutter build web --release --web-renderer html
+
+      # ── SSH setup ─────────────────────────────────────────────────────────
+      - name: Setup SSH key
+        run: |
+          mkdir -p ~/.ssh
+          echo "${{ secrets.EC2_SSH_KEY }}" > ~/.ssh/deploy_key
+          chmod 600 ~/.ssh/deploy_key
+          ssh-keyscan -H ${{ secrets.EC2_HOST }} >> ~/.ssh/known_hosts
+
+      # ── Deploy Flutter web app ────────────────────────────────────────────
+      - name: Deploy web app to EC2
+        run: |
+          rsync -az --delete \
+            -e "ssh -i ~/.ssh/deploy_key -o StrictHostKeyChecking=no" \
+            mobile/build/web/ \
+            ubuntu@${{ secrets.EC2_HOST }}:/var/www/coachtrack/
+
+      # ── Deploy backend + restart ──────────────────────────────────────────
+      - name: Deploy backend to EC2
+        run: |
+          ssh -i ~/.ssh/deploy_key -o StrictHostKeyChecking=no \
+            ubuntu@${{ secrets.EC2_HOST }} "
+              cd /home/ubuntu/coachtrack
+              git pull origin master
+              cd backend
+              npm install --omit=dev
+              pm2 restart coachtrack
+            "
+
+      # ── Reload Nginx ──────────────────────────────────────────────────────
+      - name: Reload Nginx
+        run: |
+          ssh -i ~/.ssh/deploy_key -o StrictHostKeyChecking=no \
+            ubuntu@${{ secrets.EC2_HOST }} \
+            "sudo systemctl reload nginx"

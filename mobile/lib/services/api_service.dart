@@ -1,7 +1,7 @@
 // lib/services/api_service.dart
 import 'dart:convert';
 import 'package:http/http.dart' as http;
-import 'package:flutter_secure_storage/flutter_secure_storage.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import '../core/constants.dart';
 
 class ApiService {
@@ -9,21 +9,23 @@ class ApiService {
   factory ApiService() => _instance;
   ApiService._internal();
 
-  final _storage = const FlutterSecureStorage();
   String? _token;
 
   Future<void> loadToken() async {
-    _token = await _storage.read(key: AppConstants.tokenKey);
+    final prefs = await SharedPreferences.getInstance();
+    _token = prefs.getString(AppConstants.tokenKey);
   }
 
   Future<void> saveToken(String token) async {
     _token = token;
-    await _storage.write(key: AppConstants.tokenKey, value: token);
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString(AppConstants.tokenKey, token);
   }
 
   Future<void> clearToken() async {
     _token = null;
-    await _storage.deleteAll();
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.clear();
   }
 
   Map<String, String> get _headers => {
