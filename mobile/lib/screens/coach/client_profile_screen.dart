@@ -115,8 +115,6 @@ class _ClientProfileScreenState extends State<ClientProfileScreen> {
                       ),
                     ),
                     child: Row(mainAxisSize: MainAxisSize.min, children: [
-                      Text(goalData?['emoji'] ?? '🎯',
-                          style: const TextStyle(fontSize: 16)),
                       const SizedBox(width: 6),
                       Text(
                         goalData != null
@@ -135,10 +133,10 @@ class _ClientProfileScreenState extends State<ClientProfileScreen> {
 
                   // Stats row
                   Row(mainAxisAlignment: MainAxisAlignment.spaceAround, children: [
-                    _stat('⚖️', '${c['current_weight_kg'] ?? '--'} kg', 'Current'),
-                    _stat('🎯', '${c['goal_weight_kg'] ?? '--'} kg', 'Goal'),
-                    _stat('🏃', _cap(c['activity_level']), 'Activity'),
-                    _stat('🥗', _cap(c['diet_preference']), 'Diet'),
+                    _stat('Wt', '${c['current_weight_kg'] ?? '--'} kg', 'Current'),
+                    _stat('Tgt', '${c['goal_weight_kg'] ?? '--'} kg', 'Goal'),
+                    _stat('Act', _cap(c['activity_level']), 'Activity'),
+                    _stat('Diet', _cap(c['diet_preference']), 'Diet'),
                   ]),
                   const SizedBox(height: 12),
                   _programPeriodRow(),
@@ -200,20 +198,78 @@ class _ClientProfileScreenState extends State<ClientProfileScreen> {
             const SizedBox(height: 14),
 
             // ── Health notes ──────────────────────────────────
-            if (c['health_conditions'] != null || c['injuries'] != null || c['allergies'] != null) ...[
-              const SectionHeader(title: 'Health Notes'),
-              const SizedBox(height: 8),
-              Card(child: Padding(
-                padding: const EdgeInsets.all(14),
-                child: Column(children: [
-                  if (c['health_conditions'] != null) _row('Conditions', c['health_conditions']),
-                  if (c['injuries'] != null)           _row('Injuries',   c['injuries']),
-                  if (c['allergies'] != null)          _row('Allergies',  c['allergies']),
-                  if (c['medications'] != null)        _row('Medications',c['medications']),
-                ]),
-              )),
-              const SizedBox(height: 14),
-            ],
+            const SectionHeader(title: 'Health Notes'),
+            const SizedBox(height: 8),
+            Card(child: Padding(
+              padding: const EdgeInsets.all(14),
+              child: Column(children: [
+                _row('Conditions', c['health_conditions']),
+                _row('Injuries',   c['injuries']),
+                _row('Allergies',  c['allergies']),
+                _row('Medications',c['medications']),
+              ]),
+            )),
+            const SizedBox(height: 14),
+
+            // ── Onboarding: Eating Habits ─────────────────────
+            const SectionHeader(title: 'Eating Habits'),
+            const SizedBox(height: 8),
+            Card(child: Padding(
+              padding: const EdgeInsets.all(14),
+              child: Column(children: [
+                _row('Meals / day',    c['meals_per_day']?.toString()),
+                _row('Meal timings',   c['meal_timings']),
+                _row('Breakfast',      c['typical_breakfast']),
+                _row('Lunch',          c['typical_lunch']),
+                _row('Snacks',         c['typical_snacks']),
+                _row('Dinner',         c['typical_dinner']),
+                _row('Tea / Coffee',   c['tea_coffee']),
+                _row('Eats out',       c['eating_out_frequency']),
+                _row('Eats out pref',  c['eating_out_preference']),
+              ]),
+            )),
+            const SizedBox(height: 14),
+
+            // ── Onboarding: Activity ──────────────────────────
+            const SectionHeader(title: 'Activity'),
+            const SizedBox(height: 8),
+            Card(child: Padding(
+              padding: const EdgeInsets.all(14),
+              child: Column(children: [
+                _row('Currently workouts',
+                    c['currently_workout'] == null ? null
+                    : (c['currently_workout'] == true ? 'Yes' : 'No')),
+                _row('Workout type',   c['workout_type']),
+                _row('Activity level', _cap(c['activity_level'])),
+              ]),
+            )),
+            const SizedBox(height: 14),
+
+            // ── Onboarding: Lifestyle Baselines ───────────────
+            const SectionHeader(title: 'Lifestyle Baselines'),
+            const SizedBox(height: 8),
+            Card(child: Padding(
+              padding: const EdgeInsets.all(14),
+              child: Column(children: [
+                _row('Typical sleep',  c['typical_sleep_hours'] != null
+                    ? '${c['typical_sleep_hours']} hrs' : null),
+                _row('Daily steps',    c['typical_daily_steps']?.toString()),
+                _row('Stress level',   c['typical_stress_level']),
+              ]),
+            )),
+            const SizedBox(height: 14),
+
+            // ── Onboarding: Family ────────────────────────────
+            const SectionHeader(title: 'Family'),
+            const SizedBox(height: 8),
+            Card(child: Padding(
+              padding: const EdgeInsets.all(14),
+              child: Column(children: [
+                _row('Family type',    _cap(c['family_type'])),
+                _row('Family members', c['family_members_count']?.toString()),
+              ]),
+            )),
+            const SizedBox(height: 14),
 
             // ── Recent tracking ───────────────────────────────
             SectionHeader(
@@ -528,8 +584,6 @@ class _ClientProfileScreenState extends State<ClientProfileScreen> {
     return Wrap(
       spacing: 8, runSpacing: 8,
       children: plan.items.map((item) {
-        final cat = lifestyleCategories.firstWhere(
-          (c) => c['key'] == item.category, orElse: () => {'emoji': '✏️'});
         return Container(
           padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
           decoration: BoxDecoration(
@@ -538,8 +592,7 @@ class _ClientProfileScreenState extends State<ClientProfileScreen> {
             border: Border.all(color: Colors.teal.shade100),
           ),
           child: Row(mainAxisSize: MainAxisSize.min, children: [
-            Text(cat['emoji'] as String, style: const TextStyle(fontSize: 14)),
-            const SizedBox(width: 6),
+            const SizedBox(width: 2),
             Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
               Text(item.title,
                 style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w500)),
@@ -604,14 +657,19 @@ class _ClientProfileScreenState extends State<ClientProfileScreen> {
     );
   }
 
-  Widget _row(String label, String value) {
+  Widget _row(String label, String? value) {
     return Padding(
       padding: const EdgeInsets.only(bottom: 6),
       child: Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
-        SizedBox(width: 90, child: Text(label,
+        SizedBox(width: 110, child: Text(label,
           style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 12))),
-        Expanded(child: Text(value,
-          style: const TextStyle(fontSize: 12, color: Color(AppConstants.textSecondary)))),
+        Expanded(child: Text(value ?? '--',
+          style: TextStyle(
+            fontSize: 12,
+            color: value != null
+                ? const Color(AppConstants.textSecondary)
+                : Colors.grey.shade400,
+          ))),
       ]),
     );
   }

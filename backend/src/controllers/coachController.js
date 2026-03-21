@@ -32,7 +32,7 @@ const addClient = async (req, res) => {
     const { participant_username } = req.body;
 
     const userResult = await db.query(
-      "SELECT id, full_name FROM users WHERE username = $1 AND role = 'participant'",
+      "SELECT id, full_name FROM users WHERE LOWER(username) = LOWER($1) AND role = 'participant'",
       [participant_username]
     );
 

@@ -92,7 +92,7 @@ class _AssignDietScreenState extends State<AssignDietScreen> {
 
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('✅ Diet plan assigned!'), backgroundColor: Colors.green));
+          const SnackBar(content: Text('Diet plan assigned!'), backgroundColor: Colors.green));
         context.go('/coach/client/${widget.clientId}');
       }
     } catch (e) {

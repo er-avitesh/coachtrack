@@ -170,25 +170,25 @@ class Tip {
 
 // Health goals
 const List<Map<String, String>> healthGoals = [
-  {'key': 'lose_weight',       'label': 'Lose Weight',        'emoji': '⚖️'},
-  {'key': 'build_muscle',      'label': 'Build Muscle',       'emoji': '💪'},
-  {'key': 'stay_fit',          'label': 'Stay Fit',           'emoji': '🏃'},
-  {'key': 'reverse_diabetes',  'label': 'Reverse Diabetes',   'emoji': '🩺'},
-  {'key': 'healthy_lifestyle', 'label': 'Healthy Lifestyle',  'emoji': '🥗'},
-  {'key': 'improve_stamina',   'label': 'Improve Stamina',    'emoji': '🔋'},
-  {'key': 'stress_management', 'label': 'Stress Management',  'emoji': '🧘'},
+  {'key': 'lose_weight',       'label': 'Lose Weight'},
+  {'key': 'build_muscle',      'label': 'Build Muscle'},
+  {'key': 'stay_fit',          'label': 'Stay Fit'},
+  {'key': 'reverse_diabetes',  'label': 'Reverse Diabetes'},
+  {'key': 'healthy_lifestyle', 'label': 'Healthy Lifestyle'},
+  {'key': 'improve_stamina',   'label': 'Improve Stamina'},
+  {'key': 'stress_management', 'label': 'Stress Management'},
 ];
 
 // Lifestyle categories
 const List<Map<String, dynamic>> lifestyleCategories = [
-  {'key': 'steps',       'label': 'Daily Steps',     'emoji': '👣', 'unit': 'steps/day',  'default': '8000'},
-  {'key': 'water',       'label': 'Water Intake',    'emoji': '💧', 'unit': 'litres/day', 'default': '3'},
-  {'key': 'sleep',       'label': 'Sleep Target',    'emoji': '😴', 'unit': 'hours',      'default': '8'},
-  {'key': 'screen_time', 'label': 'Screen Time Limit','emoji': '📵', 'unit': 'hours/day', 'default': '2'},
-  {'key': 'meditation',  'label': 'Meditation',      'emoji': '🧘', 'unit': 'mins/day',   'default': '10'},
-  {'key': 'sunlight',    'label': 'Sunlight Exposure','emoji': '☀️','unit': 'mins/day',   'default': '20'},
-  {'key': 'no_sugar',    'label': 'No Added Sugar',  'emoji': '🚫', 'unit': null,          'default': null},
-  {'key': 'no_alcohol',  'label': 'No Alcohol',      'emoji': '🚫', 'unit': null,          'default': null},
-  {'key': 'meal_timing', 'label': 'Meal Timing',     'emoji': '🕐', 'unit': null,          'default': '7am / 1pm / 4pm / 8pm'},
-  {'key': 'custom',      'label': 'Custom',          'emoji': '✏️', 'unit': null,          'default': null},
+  {'key': 'steps',       'label': 'Daily Steps',      'unit': 'steps/day',  'default': '8000'},
+  {'key': 'water',       'label': 'Water Intake',     'unit': 'litres/day', 'default': '3'},
+  {'key': 'sleep',       'label': 'Sleep Target',     'unit': 'hours',      'default': '8'},
+  {'key': 'screen_time', 'label': 'Screen Time Limit','unit': 'hours/day',  'default': '2'},
+  {'key': 'meditation',  'label': 'Meditation',       'unit': 'mins/day',   'default': '10'},
+  {'key': 'sunlight',    'label': 'Sunlight Exposure','unit': 'mins/day',   'default': '20'},
+  {'key': 'no_sugar',    'label': 'No Added Sugar',   'unit': null,         'default': null},
+  {'key': 'no_alcohol',  'label': 'No Alcohol',       'unit': null,         'default': null},
+  {'key': 'meal_timing', 'label': 'Meal Timing',      'unit': null,         'default': '7am / 1pm / 4pm / 8pm'},
+  {'key': 'custom',      'label': 'Custom',           'unit': null,         'default': null},
 ];

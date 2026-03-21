@@ -228,7 +228,7 @@ class _AssignWorkoutScreenState extends State<AssignWorkoutScreen> {
       });
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('✅ Workout plan assigned!'), backgroundColor: Colors.green));
+          const SnackBar(content: Text('Workout plan assigned!'), backgroundColor: Colors.green));
         context.go('/coach/client/${widget.clientId}');
       }
     } catch (e) { setState(() => _error = e.toString()); }

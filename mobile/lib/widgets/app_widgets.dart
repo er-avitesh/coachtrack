@@ -18,33 +18,51 @@ class StatCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final color     = iconColor ?? const Color(AppConstants.primaryColor);
+    final onSurface = Theme.of(context).colorScheme.onSurface;
     return Card(
       child: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+        child: Row(
           children: [
-            Icon(icon, color: iconColor ?? const Color(AppConstants.primaryColor), size: 22),
-            const SizedBox(height: 8),
-            Row(
-              crossAxisAlignment: CrossAxisAlignment.end,
-              children: [
-                Text(value,
-                  style: const TextStyle(fontSize: 22, fontWeight: FontWeight.bold,
-                      color: Color(AppConstants.textPrimary))),
-                if (unit != null) ...[
-                  const SizedBox(width: 2),
-                  Padding(
-                    padding: const EdgeInsets.only(bottom: 2),
-                    child: Text(unit!,
-                      style: const TextStyle(fontSize: 13, color: Color(AppConstants.textSecondary))),
-                  ),
-                ],
-              ],
+            Container(
+              padding: const EdgeInsets.all(8),
+              decoration: BoxDecoration(
+                color: color.withValues(alpha: 0.1),
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: Icon(icon, color: color, size: 18),
             ),
-            const SizedBox(height: 4),
-            Text(label,
-              style: const TextStyle(fontSize: 12, color: Color(AppConstants.textSecondary))),
+            const SizedBox(width: 10),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Row(
+                    crossAxisAlignment: CrossAxisAlignment.end,
+                    children: [
+                      Flexible(
+                        child: Text(value,
+                          style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold,
+                              color: onSurface),
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ),
+                      if (unit != null) ...[
+                        const SizedBox(width: 2),
+                        Text(unit!,
+                          style: TextStyle(fontSize: 11,
+                              color: onSurface.withValues(alpha: 0.55))),
+                      ],
+                    ],
+                  ),
+                  Text(label,
+                    style: TextStyle(fontSize: 11,
+                        color: onSurface.withValues(alpha: 0.55))),
+                ],
+              ),
+            ),
           ],
         ),
       ),
@@ -65,8 +83,8 @@ class SectionHeader extends StatelessWidget {
       mainAxisAlignment: MainAxisAlignment.spaceBetween,
       children: [
         Text(title,
-          style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w700,
-              color: Color(AppConstants.textPrimary))),
+          style: TextStyle(fontSize: 18, fontWeight: FontWeight.w700,
+              color: Theme.of(context).colorScheme.onSurface)),
         if (action != null) action!,
       ],
     );

@@ -46,74 +46,72 @@ class _MyMealsScreenState extends State<MyMealsScreen> {
     final fatCtrl      = TextEditingController();
     bool saving = false;
 
-    showModalBottomSheet(
+    showDialog(
       context: context,
-      isScrollControlled: true,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
-      ),
       builder: (ctx) => StatefulBuilder(
-        builder: (ctx, setSheetState) => Padding(
-          padding: EdgeInsets.only(
-            left: 20, right: 20, top: 20,
-            bottom: MediaQuery.of(ctx).viewInsets.bottom + 20,
+        builder: (ctx, setSheetState) => AlertDialog(
+          title: const Text('Add Custom Meal'),
+          content: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Text('Enter values per 100g',
+                  style: TextStyle(color: Color(AppConstants.textSecondary), fontSize: 13)),
+                const SizedBox(height: 16),
+                TextField(
+                  controller: nameCtrl,
+                  decoration: const InputDecoration(labelText: 'Meal Name *', hintText: 'e.g. Paneer Poha'),
+                  textCapitalization: TextCapitalization.words,
+                ),
+                const SizedBox(height: 12),
+                Row(children: [
+                  Expanded(child: _sheetField(calCtrl,     'Calories *',  'kcal')),
+                  const SizedBox(width: 10),
+                  Expanded(child: _sheetField(proteinCtrl, 'Protein',     'g')),
+                ]),
+                const SizedBox(height: 10),
+                Row(children: [
+                  Expanded(child: _sheetField(carbsCtrl, 'Carbs', 'g')),
+                  const SizedBox(width: 10),
+                  Expanded(child: _sheetField(fatCtrl,   'Fat',   'g')),
+                ]),
+              ],
+            ),
           ),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              const Text('Add Custom Meal',
-                style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
-              const SizedBox(height: 4),
-              const Text('Enter values per 100g',
-                style: TextStyle(color: Color(AppConstants.textSecondary), fontSize: 13)),
-              const SizedBox(height: 16),
-              TextField(
-                controller: nameCtrl,
-                decoration: const InputDecoration(labelText: 'Meal Name *', hintText: 'e.g. Paneer Poha'),
-                textCapitalization: TextCapitalization.words,
-              ),
-              const SizedBox(height: 12),
-              Row(children: [
-                Expanded(child: _sheetField(calCtrl,     'Calories *',  'kcal')),
-                const SizedBox(width: 10),
-                Expanded(child: _sheetField(proteinCtrl, 'Protein',     'g')),
-              ]),
-              const SizedBox(height: 10),
-              Row(children: [
-                Expanded(child: _sheetField(carbsCtrl, 'Carbs', 'g')),
-                const SizedBox(width: 10),
-                Expanded(child: _sheetField(fatCtrl,   'Fat',   'g')),
-              ]),
-              const SizedBox(height: 20),
-              LoadingButton(
-                text: 'Save Meal',
-                loading: saving,
-                onPressed: () async {
-                  if (nameCtrl.text.isEmpty || calCtrl.text.isEmpty) {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(content: Text('Name and calories are required')));
-                    return;
-                  }
-                  setSheetState(() => saving = true);
-                  try {
-                    await _api.post('/meals/create', {
-                      'meal_name':          nameCtrl.text.trim(),
-                      'calories_per_100g':  double.tryParse(calCtrl.text) ?? 0,
-                      'protein_per_100g':   double.tryParse(proteinCtrl.text) ?? 0,
-                      'carbs_per_100g':     double.tryParse(carbsCtrl.text) ?? 0,
-                      'fat_per_100g':       double.tryParse(fatCtrl.text) ?? 0,
-                    });
-                    Navigator.pop(ctx);
-                    _load();
-                  } catch (e) {
-                    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(e.toString())));
-                  }
-                  setSheetState(() => saving = false);
-                },
-              ),
-            ],
-          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(ctx),
+              child: const Text('Cancel'),
+            ),
+            LoadingButton(
+              text: 'Save Meal',
+              loading: saving,
+              onPressed: () async {
+                if (nameCtrl.text.isEmpty || calCtrl.text.isEmpty) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(content: Text('Name and calories are required')));
+                  return;
+                }
+                setSheetState(() => saving = true);
+                final messenger = ScaffoldMessenger.of(context);
+                try {
+                  await _api.post('/meals/create', {
+                    'meal_name':          nameCtrl.text.trim(),
+                    'calories_per_100g':  double.tryParse(calCtrl.text) ?? 0,
+                    'protein_per_100g':   double.tryParse(proteinCtrl.text) ?? 0,
+                    'carbs_per_100g':     double.tryParse(carbsCtrl.text) ?? 0,
+                    'fat_per_100g':       double.tryParse(fatCtrl.text) ?? 0,
+                  });
+                  if (ctx.mounted) Navigator.pop(ctx);
+                  _load();
+                } catch (e) {
+                  messenger.showSnackBar(SnackBar(content: Text(e.toString())));
+                }
+                setSheetState(() => saving = false);
+              },
+            ),
+          ],
         ),
       ),
     );

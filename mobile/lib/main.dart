@@ -4,6 +4,7 @@ import 'package:provider/provider.dart';
 import 'core/theme.dart';
 import 'core/router.dart';
 import 'providers/auth_provider.dart';
+import 'providers/theme_provider.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -18,21 +19,31 @@ class CoachTrackApp extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return ChangeNotifierProvider.value(
-      value: auth,
-      child: Builder(
-        builder: (context) {
-          final router = buildRouter(
-            context.watch<AuthProvider>(),
-          );
-          return MaterialApp.router(
-            title: 'CoachTrack',
-            debugShowCheckedModeBanner: false,
-            theme: AppTheme.light,
-            routerConfig: router,
-          );
-        },
-      ),
+    return MultiProvider(
+      providers: [
+        ChangeNotifierProvider.value(value: auth),
+        ChangeNotifierProvider(create: (_) => ThemeProvider()),
+      ],
+      child: const _AppView(),
+    );
+  }
+}
+
+class _AppView extends StatelessWidget {
+  const _AppView();
+
+  @override
+  Widget build(BuildContext context) {
+    final auth   = context.watch<AuthProvider>();
+    final theme  = context.watch<ThemeProvider>();
+    final router = buildRouter(auth);
+    return MaterialApp.router(
+      title: 'CoachTrack',
+      debugShowCheckedModeBanner: false,
+      theme: AppTheme.light,
+      darkTheme: AppTheme.dark,
+      themeMode: theme.isDark ? ThemeMode.dark : ThemeMode.light,
+      routerConfig: router,
     );
   }
 }

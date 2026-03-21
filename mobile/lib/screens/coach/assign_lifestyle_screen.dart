@@ -118,7 +118,7 @@ class _AssignLifestyleScreenState extends State<AssignLifestyleScreen> {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
-            content: Text('✅ Lifestyle plan assigned!'),
+            content: Text('Lifestyle plan assigned!'),
             backgroundColor: Colors.green));
         context.go('/coach/client/${widget.clientId}');
       }
@@ -241,9 +241,22 @@ class _AssignLifestyleScreenState extends State<AssignLifestyleScreen> {
           ...standardCats.map((cat) {
             final key        = cat['key'] as String;
             final label      = cat['label'] as String;
-            final emoji      = cat['emoji'] as String;
             final unit       = cat['unit'] as String?;
             final isSelected = _selected.containsKey(key);
+
+            // Icon per category key
+            const catIcons = <String, IconData>{
+              'steps':       Icons.directions_walk,
+              'water':       Icons.water_drop_outlined,
+              'sleep':       Icons.bedtime_outlined,
+              'screen_time': Icons.phone_android_outlined,
+              'meditation':  Icons.self_improvement,
+              'sunlight':    Icons.wb_sunny_outlined,
+              'no_sugar':    Icons.no_food_outlined,
+              'no_alcohol':  Icons.local_bar_outlined,
+              'meal_timing': Icons.schedule,
+            };
+            final catIcon = catIcons[key] ?? Icons.check_circle_outline;
 
             return Card(
               margin: const EdgeInsets.only(bottom: 10),
@@ -268,7 +281,11 @@ class _AssignLifestyleScreenState extends State<AssignLifestyleScreen> {
                     child: Padding(
                       padding: const EdgeInsets.all(14),
                       child: Row(children: [
-                        Text(emoji, style: const TextStyle(fontSize: 22)),
+                        Icon(catIcon,
+                          color: isSelected
+                              ? const Color(AppConstants.primaryColor)
+                              : Colors.grey.shade500,
+                          size: 22),
                         const SizedBox(width: 12),
                         Expanded(child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
@@ -315,7 +332,7 @@ class _AssignLifestyleScreenState extends State<AssignLifestyleScreen> {
           // ── Custom habits section ─────────────────────────
           const Divider(height: 28),
           Row(children: [
-            const Text('✏️  Custom Habits',
+            const Text('Custom Habits',
               style: TextStyle(fontWeight: FontWeight.w700, fontSize: 14)),
             const Spacer(),
             TextButton.icon(
@@ -351,7 +368,7 @@ class _AssignLifestyleScreenState extends State<AssignLifestyleScreen> {
                 child: Padding(
                   padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
                   child: Row(children: [
-                    const Text('✏️', style: TextStyle(fontSize: 18)),
+                    const Icon(Icons.edit_outlined, size: 18),
                     const SizedBox(width: 10),
                     Expanded(child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,

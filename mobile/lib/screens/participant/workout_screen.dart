@@ -1,6 +1,7 @@
 // lib/screens/participant/workout_screen.dart
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import '../../services/api_service.dart';
 import '../../models/models.dart';
 import '../../widgets/app_widgets.dart';
@@ -20,6 +21,8 @@ class _WorkoutScreenState extends State<WorkoutScreen> {
 
   // Track completed sets per exercise: dayIndex -> exerciseIndex -> setsCompleted
   final Map<int, Map<int, int>> _completedSets = {};
+  // Track when each day was last fully completed
+  final Map<int, DateTime?> _lastDoneDate = {};
 
   @override
   void initState() { super.initState(); _load(); }
@@ -28,18 +31,70 @@ class _WorkoutScreenState extends State<WorkoutScreen> {
     setState(() => _loading = true);
     try {
       final res = await _api.get('/workout/get');
-      setState(() {
-        _plan = res['workout_plan'] != null
-            ? WorkoutPlan.fromJson(res['workout_plan']) : null;
-      });
+      if (res['workout_plan'] != null) {
+        _plan = WorkoutPlan.fromJson(res['workout_plan']);
+        await _loadPersistedSets();
+      }
+      setState(() {});
     } catch (_) {}
     setState(() => _loading = false);
+  }
+
+  String _prefsKey(String suffix, int dayIndex) =>
+      'workout_${_plan!.id}_day${dayIndex}_$suffix';
+
+  Future<void> _loadPersistedSets() async {
+    final prefs = await SharedPreferences.getInstance();
+    for (int d = 0; d < _plan!.days.length; d++) {
+      final raw = prefs.getString(_prefsKey('sets', d));
+      if (raw != null) {
+        final parts = raw.split(',');
+        final map = <int, int>{};
+        for (int i = 0; i < parts.length; i++) {
+          map[i] = int.tryParse(parts[i]) ?? 0;
+        }
+        _completedSets[d] = map;
+      }
+      final dateStr = prefs.getString(_prefsKey('lastdone', d));
+      if (dateStr != null) _lastDoneDate[d] = DateTime.tryParse(dateStr);
+    }
+  }
+
+  Future<void> _persistSets(int dayIndex) async {
+    final prefs = await SharedPreferences.getInstance();
+    final day = _plan!.days[dayIndex];
+    final map = _completedSets[dayIndex] ?? {};
+    final encoded = List.generate(day.exercises.length, (i) => '${map[i] ?? 0}').join(',');
+    await prefs.setString(_prefsKey('sets', dayIndex), encoded);
+
+    // Check if fully done → save last done date
+    final allDone = day.exercises.asMap().entries.every(
+        (e) => (map[e.key] ?? 0) >= e.value.sets);
+    if (allDone) {
+      final now = DateTime.now();
+      _lastDoneDate[dayIndex] = now;
+      await prefs.setString(_prefsKey('lastdone', dayIndex), now.toIso8601String());
+      setState(() {});
+    }
   }
 
   void _showVideoPlayer(String exerciseName, String videoId) {
     showDialog(
       context: context,
       builder: (_) => VideoSheet(exerciseName: exerciseName, videoId: videoId),
+    );
+  }
+
+  Widget _lastDoneBadge(DateTime date, bool activeTab) {
+    final days = DateTime.now().difference(date).inDays;
+    final label = days == 0 ? 'today' : days == 1 ? '1d ago' : '${days}d ago';
+    return Text(
+      label,
+      style: TextStyle(
+        fontSize: 9,
+        fontWeight: FontWeight.w600,
+        color: activeTab ? Colors.white70 : Colors.green.shade700,
+      ),
     );
   }
 
@@ -146,10 +201,19 @@ class _WorkoutScreenState extends State<WorkoutScreen> {
                 border: Border.all(
                   color: active ? Colors.green : Colors.grey.shade200),
               ),
-              child: Text(day.dayName,
-                style: TextStyle(
-                  fontSize: 12, fontWeight: FontWeight.w600,
-                  color: active ? Colors.white : const Color(AppConstants.textPrimary))),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text(day.dayName,
+                    style: TextStyle(
+                      fontSize: 12, fontWeight: FontWeight.w600,
+                      color: active ? Colors.white : const Color(AppConstants.textPrimary))),
+                  if (_lastDoneDate[i] != null) ...[
+                    const SizedBox(width: 4),
+                    _lastDoneBadge(_lastDoneDate[i]!, active),
+                  ],
+                ],
+              ),
             ),
           );
         }).toList(),
@@ -231,10 +295,13 @@ class _WorkoutScreenState extends State<WorkoutScreen> {
                 ...List.generate(ex.sets, (s) {
                   final complete = s < done;
                   return GestureDetector(
-                    onTap: () => setState(() {
-                      _completedSets[_activeDayIndex] ??= {};
-                      _completedSets[_activeDayIndex]![i] = complete ? s : s + 1;
-                    }),
+                    onTap: () {
+                      setState(() {
+                        _completedSets[_activeDayIndex] ??= {};
+                        _completedSets[_activeDayIndex]![i] = complete ? s : s + 1;
+                      });
+                      _persistSets(_activeDayIndex);
+                    },
                     child: Container(
                       margin: const EdgeInsets.only(right: 6),
                       width: 34, height: 34,
@@ -281,7 +348,7 @@ class _WorkoutScreenState extends State<WorkoutScreen> {
         children: [
           Icon(Icons.emoji_events, color: Colors.green, size: 28),
           SizedBox(width: 10),
-          Text("Day complete! Great job! 💪",
+          Text("Day complete! Great job!",
             style: TextStyle(fontWeight: FontWeight.bold,
                 color: Colors.green, fontSize: 15)),
         ],
