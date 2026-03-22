@@ -24,45 +24,29 @@ jobs:
           flutter pub get
           flutter build web --release
 
-      # ── SSH setup ─────────────────────────────────────────────────────────
-      - name: Setup SSH key
-        run: |
-          mkdir -p ~/.ssh
-          echo "${{ secrets.EC2_SSH_KEY }}" > ~/.ssh/deploy_key
-          chmod 600 ~/.ssh/deploy_key
-
-      # ── Deploy Flutter web app ────────────────────────────────────────────
+      # ── Deploy Flutter web files to EC2 ───────────────────────────────────
       - name: Deploy web app to EC2
-        env:
-          EC2_HOST: ${{ secrets.EC2_HOST }}
-        run: |
-          HOST=$(echo "$EC2_HOST" | tr -d '[:space:]')
-          rsync -az --delete \
-            -e "ssh -i ~/.ssh/deploy_key -o StrictHostKeyChecking=no" \
-            mobile/build/web/ \
-            ubuntu@${HOST}:/var/www/coachtrack/
+        uses: appleboy/scp-action@v0.1.7
+        with:
+          host: ${{ secrets.EC2_HOST }}
+          username: ubuntu
+          key: ${{ secrets.EC2_SSH_KEY }}
+          source: "mobile/build/web/*"
+          target: "/var/www/coachtrack"
+          strip_components: 3
 
-      # ── Deploy backend + restart ──────────────────────────────────────────
-      - name: Deploy backend to EC2
-        env:
-          EC2_HOST: ${{ secrets.EC2_HOST }}
-        run: |
-          HOST=$(echo "$EC2_HOST" | tr -d '[:space:]')
-          ssh -i ~/.ssh/deploy_key -o StrictHostKeyChecking=no \
-            ubuntu@${HOST} "
-              cd /home/ubuntu/coachtrack
-              git pull origin master
-              cd backend
-              npm install --omit=dev
-              pm2 restart coachtrack
-            "
-
-      # ── Reload Nginx ──────────────────────────────────────────────────────
-      - name: Reload Nginx
-        env:
-          EC2_HOST: ${{ secrets.EC2_HOST }}
-        run: |
-          HOST=$(echo "$EC2_HOST" | tr -d '[:space:]')
-          ssh -i ~/.ssh/deploy_key -o StrictHostKeyChecking=no \
-            ubuntu@${HOST} \
-            "sudo systemctl reload nginx"
+      # ── Pull backend changes + restart ────────────────────────────────────
+      - name: Deploy backend and reload
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.EC2_HOST }}
+          username: ubuntu
+          key: ${{ secrets.EC2_SSH_KEY }}
+          script: |
+            cd /home/ubuntu/coachtrack
+            git pull origin master
+            cd backend
+            npm install --omit=dev
+            pm2 restart coachtrack
+            chmod -R 755 /var/www/coachtrack/
+            sudo systemctl reload nginx
