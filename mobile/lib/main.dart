@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'core/theme.dart';
 import 'core/router.dart';
+import 'core/constants.dart';
 import 'providers/auth_provider.dart';
 import 'providers/theme_provider.dart';
 
@@ -37,13 +38,28 @@ class _AppView extends StatelessWidget {
     final auth   = context.watch<AuthProvider>();
     final theme  = context.watch<ThemeProvider>();
     final router = buildRouter(auth);
-    return MaterialApp.router(
-      title: 'CoachTrack',
-      debugShowCheckedModeBanner: false,
-      theme: AppTheme.light,
-      darkTheme: AppTheme.dark,
-      themeMode: theme.isDark ? ThemeMode.dark : ThemeMode.light,
-      routerConfig: router,
+    return Directionality(
+      textDirection: TextDirection.ltr,
+      child: Stack(
+        children: [
+          MaterialApp.router(
+            title: 'CoachTrack',
+            debugShowCheckedModeBanner: false,
+            theme: AppTheme.light,
+            darkTheme: AppTheme.dark,
+            themeMode: theme.isDark ? ThemeMode.dark : ThemeMode.light,
+            routerConfig: router,
+          ),
+          Positioned(
+            bottom: 6,
+            right: 10,
+            child: Text(
+              'v${AppConstants.version}',
+              style: const TextStyle(fontSize: 10, color: Color(0x44000000)),
+            ),
+          ),
+        ],
+      ),
     );
   }
 }
