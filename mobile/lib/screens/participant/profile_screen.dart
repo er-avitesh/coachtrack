@@ -383,6 +383,13 @@ class _ProfileScreenState extends State<ProfileScreen> {
                   const SizedBox(height: 24),
 
                   LoadingButton(text: 'Save Profile', loading: _saving, onPressed: _save),
+                  const SizedBox(height: 16),
+                  Center(
+                    child: Text(
+                      'v${AppConstants.version}',
+                      style: TextStyle(fontSize: 11, color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.35)),
+                    ),
+                  ),
                   const SizedBox(height: 24),
                 ],
               ),
