@@ -38,6 +38,11 @@ app.use('/api/lifestyle', lifestyleRoutes);
 // ── Health check ──────────────────────────────────────────
 app.get('/health', (req, res) => res.json({ status: 'ok', timestamp: new Date() }));
 
+// ── 404 handler ───────────────────────────────────────────
+app.use((req, res) => {
+  res.status(404).json({ success: false, message: 'Route not found' });
+});
+
 // ── Global error handler ──────────────────────────────────
 app.use((err, req, res, next) => {
   console.error(err.stack);
