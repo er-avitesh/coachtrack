@@ -16,6 +16,7 @@ class CoachDashboardScreen extends StatefulWidget {
 class _CoachDashboardScreenState extends State<CoachDashboardScreen> {
   final _api = ApiService();
   List<Map<String, dynamic>> _clients = [];
+  List<Map<String, dynamic>> _todayAppts = [];
   bool _loading = true;
 
   @override
@@ -25,7 +26,11 @@ class _CoachDashboardScreenState extends State<CoachDashboardScreen> {
     setState(() => _loading = true);
     try {
       final res = await _api.get('/coach/clients');
-      setState(() => _clients = List<Map<String, dynamic>>.from(res['clients']));
+      setState(() => _clients = List<Map<String, dynamic>>.from(res['clients'] ?? []));
+    } catch (_) {}
+    try {
+      final res = await _api.get('/appointments/today');
+      setState(() => _todayAppts = List<Map<String, dynamic>>.from(res['appointments'] ?? []));
     } catch (_) {}
     setState(() => _loading = false);
   }
@@ -103,10 +108,12 @@ class _CoachDashboardScreenState extends State<CoachDashboardScreen> {
           ],
         ),
         actions: [
-          IconButton(icon: const Icon(Icons.logout), onPressed: () {
-            context.read<AuthProvider>().logout();
-            context.go('/login');
-          }),
+          IconButton(
+            icon: const Icon(Icons.calendar_month_outlined),
+            tooltip: 'Appointments',
+            onPressed: () => context.go('/coach/appointments'),
+          ),
+          IconButton(icon: const Icon(Icons.logout), onPressed: _confirmLogout),
         ],
       ),
       floatingActionButton: FloatingActionButton.extended(
@@ -127,6 +134,14 @@ class _CoachDashboardScreenState extends State<CoachDashboardScreen> {
                   : ListView(
                       padding: const EdgeInsets.all(16),
                       children: [
+                        // Today's appointments
+                        if (_todayAppts.isNotEmpty) ...[
+                          const SectionHeader(title: "Today's Appointments"),
+                          const SizedBox(height: 8),
+                          ..._todayAppts.map(_todayApptCard),
+                          const SizedBox(height: 20),
+                        ],
+
                         // Stats row
                         Row(
                           children: [
@@ -152,6 +167,82 @@ class _CoachDashboardScreenState extends State<CoachDashboardScreen> {
                       ],
                     ),
             ),
+    );
+  }
+
+  Future<void> _confirmLogout() async {
+    final confirm = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Log out?'),
+        content: const Text('Are you sure you want to log out?'),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Cancel')),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
+            onPressed: () => Navigator.pop(ctx, true),
+            child: const Text('Log out', style: TextStyle(color: Colors.white)),
+          ),
+        ],
+      ),
+    );
+    if (confirm == true && mounted) {
+      await context.read<AuthProvider>().logout();
+      if (mounted) context.go('/login');
+    }
+  }
+
+  String _apptTimeLabel(String iso) {
+    final dt = DateTime.tryParse(iso);
+    if (dt == null) return '';
+    final h = dt.hour % 12 == 0 ? 12 : dt.hour % 12;
+    final m = dt.minute.toString().padLeft(2, '0');
+    final ampm = dt.hour < 12 ? 'AM' : 'PM';
+    return '$h:$m $ampm';
+  }
+
+  Widget _todayApptCard(Map<String, dynamic> a) {
+    final timeStr = _apptTimeLabel(a['scheduled_at'] ?? '');
+    final duration = a['duration_minutes'] ?? 30;
+    final title = a['title'] ?? 'Connect';
+    final clientName = a['other_name'] ?? 'Client';
+    return Card(
+      margin: const EdgeInsets.only(bottom: 8),
+      child: InkWell(
+        onTap: () => context.go('/coach/appointments'),
+        borderRadius: BorderRadius.circular(16),
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+          child: Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(10),
+                decoration: BoxDecoration(
+                  color: Colors.teal.withValues(alpha: 0.1),
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                child: const Icon(Icons.video_call_outlined, color: Colors.teal, size: 20),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(title,
+                      style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 13)),
+                    const SizedBox(height: 2),
+                    Text('$timeStr · ${duration}m · $clientName',
+                      style: TextStyle(fontSize: 11,
+                        color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.55))),
+                  ],
+                ),
+              ),
+              Icon(Icons.chevron_right, size: 16,
+                color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.35)),
+            ],
+          ),
+        ),
+      ),
     );
   }
 

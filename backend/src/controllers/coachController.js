@@ -96,22 +96,12 @@ const getClientSummary = async (req, res) => {
       [clientId]
     );
 
-    // Active workout plan
+    // Active workout plan (summary only — full plan fetched via /workout/get?user_id=)
     const workoutPlan = await db.query(
-      `SELECT wp.*, json_agg(
-         json_build_object(
-           'exercise_name', e.exercise_name,
-           'muscle_group', e.muscle_group,
-           'sets', wpe.sets,
-           'reps', wpe.reps
-         ) ORDER BY wpe.order_index
-       ) as exercises
-       FROM workout_plans wp
-       LEFT JOIN workout_plan_exercises wpe ON wpe.workout_plan_id = wp.id
-       LEFT JOIN exercises e ON e.id = wpe.exercise_id
-       WHERE wp.participant_id = $1 AND wp.is_active = true
-       GROUP BY wp.id
-       ORDER BY wp.created_at DESC LIMIT 1`,
+      `SELECT id, plan_name, total_days, start_date, end_date, created_at
+       FROM workout_plans
+       WHERE participant_id = $1 AND is_active = true
+       ORDER BY created_at DESC LIMIT 1`,
       [clientId]
     );
 

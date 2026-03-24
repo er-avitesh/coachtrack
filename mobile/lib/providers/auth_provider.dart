@@ -21,8 +21,14 @@ class AuthProvider extends ChangeNotifier {
 
   // Load stored session on app start
   Future<void> initialize() async {
-    await _api.loadToken();
     final prefs = await SharedPreferences.getInstance();
+    final rememberMe = prefs.getBool('remember_me') ?? true;
+    if (!rememberMe) {
+      await _api.clearToken();
+      await prefs.remove(AppConstants.userKey);
+      return;
+    }
+    await _api.loadToken();
     final stored = prefs.getString(AppConstants.userKey);
     if (stored != null) {
       try {
@@ -32,7 +38,7 @@ class AuthProvider extends ChangeNotifier {
     }
   }
 
-  Future<bool> login(String username, String password) async {
+  Future<bool> login(String username, String password, {bool rememberMe = true}) async {
     _loading = true;
     _error = null;
     notifyListeners();
@@ -47,6 +53,7 @@ class AuthProvider extends ChangeNotifier {
       _user = User.fromJson(res['user']);
       final prefs = await SharedPreferences.getInstance();
       await prefs.setString(AppConstants.userKey, jsonEncode(res['user']));
+      await prefs.setBool('remember_me', rememberMe);
       _loading = false;
       notifyListeners();
       return true;
@@ -95,6 +102,9 @@ class AuthProvider extends ChangeNotifier {
 
   Future<void> logout() async {
     await _api.clearToken();
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.remove(AppConstants.userKey);
+    await prefs.remove('remember_me');
     _user = null;
     notifyListeners();
   }

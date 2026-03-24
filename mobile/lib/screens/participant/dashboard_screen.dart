@@ -26,6 +26,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
   LifestylePlan?       _lifestylePlan;
   Map<String, dynamic>? _profileData;
   List<Tip>            _tips            = [];
+  List<Map<String, dynamic>> _todayAppts = [];
   int?                 _nextDayIndex;   // suggested next workout day
   bool                 _workoutDoneToday = false;
   bool                 _loading         = true;
@@ -70,6 +71,10 @@ class _DashboardScreenState extends State<DashboardScreen> {
     } catch (e) {
       setState(() => _loading = false);
     }
+    try {
+      final res = await _api.get('/appointments/today');
+      setState(() => _todayAppts = List<Map<String, dynamic>>.from(res['appointments'] ?? []));
+    } catch (_) {}
   }
 
   /// Reads SharedPreferences to find the most recently completed workout day,
@@ -246,15 +251,17 @@ class _DashboardScreenState extends State<DashboardScreen> {
             onPressed: themeProvider.toggle,
           ),
           IconButton(
+            icon: const Icon(Icons.calendar_month_outlined),
+            tooltip: 'Appointments',
+            onPressed: () => context.go('/appointments'),
+          ),
+          IconButton(
             icon: const Icon(Icons.person_outline),
             onPressed: () => context.go('/profile'),
           ),
           IconButton(
             icon: const Icon(Icons.logout),
-            onPressed: () {
-              context.read<AuthProvider>().logout();
-              context.go('/login');
-            },
+            onPressed: _confirmLogout,
           ),
         ],
       ),
@@ -265,6 +272,14 @@ class _DashboardScreenState extends State<DashboardScreen> {
               child: ListView(
                 padding: const EdgeInsets.all(16),
                 children: [
+                  // Today's Appointments
+                  if (_todayAppts.isNotEmpty) ...[
+                    const SectionHeader(title: "Today's Appointments"),
+                    const SizedBox(height: 8),
+                    _todayAppointmentsCard(),
+                    const SizedBox(height: 24),
+                  ],
+
                   // Profile Action Items
                   if (_profileActionItems().isNotEmpty) ...[
                     const SectionHeader(title: 'Complete Your Profile'),
@@ -323,6 +338,88 @@ class _DashboardScreenState extends State<DashboardScreen> {
               ),
             ),
       bottomNavigationBar: _bottomNav(context),
+    );
+  }
+
+  Future<void> _confirmLogout() async {
+    final confirm = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Log out?'),
+        content: const Text('Are you sure you want to log out?'),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Cancel')),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
+            onPressed: () => Navigator.pop(ctx, true),
+            child: const Text('Log out', style: TextStyle(color: Colors.white)),
+          ),
+        ],
+      ),
+    );
+    if (confirm == true && mounted) {
+      await context.read<AuthProvider>().logout();
+      if (mounted) context.go('/login');
+    }
+  }
+
+  // ── Today's appointments ─────────────────────────────────────────────────
+
+  String _apptTimeLabel(String iso) {
+    final dt = DateTime.tryParse(iso);
+    if (dt == null) return '';
+    final h = dt.hour % 12 == 0 ? 12 : dt.hour % 12;
+    final m = dt.minute.toString().padLeft(2, '0');
+    final ampm = dt.hour < 12 ? 'AM' : 'PM';
+    return '$h:$m $ampm';
+  }
+
+  Widget _todayAppointmentsCard() {
+    return Column(
+      children: _todayAppts.map((a) {
+        final timeStr = _apptTimeLabel(a['scheduled_at'] ?? '');
+        final duration = a['duration_minutes'] ?? 30;
+        final title = a['title'] ?? 'Connect';
+        final coachName = a['other_name'] ?? 'Your Coach';
+        return Card(
+          margin: const EdgeInsets.only(bottom: 8),
+          child: InkWell(
+            onTap: () => context.go('/appointments'),
+            borderRadius: BorderRadius.circular(16),
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+              child: Row(
+                children: [
+                  Container(
+                    padding: const EdgeInsets.all(10),
+                    decoration: BoxDecoration(
+                      color: Colors.teal.withValues(alpha: 0.1),
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                    child: const Icon(Icons.video_call_outlined, color: Colors.teal, size: 20),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(title,
+                          style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 13)),
+                        const SizedBox(height: 2),
+                        Text('$timeStr · ${duration}m · with $coachName',
+                          style: TextStyle(fontSize: 11,
+                            color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.55))),
+                      ],
+                    ),
+                  ),
+                  Icon(Icons.chevron_right, size: 16,
+                    color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.35)),
+                ],
+              ),
+            ),
+          ),
+        );
+      }).toList(),
     );
   }
 

@@ -64,11 +64,13 @@ class _ClientProfileScreenState extends State<ClientProfileScreen> {
     final name     = c['full_name'] ?? 'Client';
     final initials = name.split(' ').take(2).map((w) => w[0]).join().toUpperCase();
 
-    // Find goal label
-    final goalKey  = c['health_goal'] as String?;
-    final goalData = goalKey != null
-        ? healthGoals.firstWhere((g) => g['key'] == goalKey, orElse: () => {})
-        : null;
+    // Find goal labels (health_goal is comma-separated)
+    final rawGoal   = c['health_goal'] as String?;
+    final goalKeys  = rawGoal?.split(',').map((s) => s.trim()).where((s) => s.isNotEmpty).toList() ?? [];
+    final goalLabels = goalKeys
+        .map((k) => healthGoals.firstWhere((g) => g['key'] == k, orElse: () => {})['label'] as String?)
+        .whereType<String>()
+        .toList();
 
     return Scaffold(
       appBar: AppBar(
@@ -100,35 +102,35 @@ class _ClientProfileScreenState extends State<ClientProfileScreen> {
                       style: const TextStyle(color: Color(AppConstants.textSecondary))),
                   const SizedBox(height: 10),
 
-                  // Goal badge
-                  Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
-                    decoration: BoxDecoration(
-                      color: goalData != null
-                          ? const Color(AppConstants.primaryColor).withValues(alpha: 0.1)
-                          : Colors.grey.shade100,
-                      borderRadius: BorderRadius.circular(20),
-                      border: Border.all(
-                        color: goalData != null
-                            ? const Color(AppConstants.primaryColor).withValues(alpha: 0.3)
-                            : Colors.grey.shade200,
+                  // Goal badges
+                  if (goalLabels.isEmpty)
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
+                      decoration: BoxDecoration(
+                        color: Colors.grey.shade100,
+                        borderRadius: BorderRadius.circular(20),
+                        border: Border.all(color: Colors.grey.shade200),
                       ),
-                    ),
-                    child: Row(mainAxisSize: MainAxisSize.min, children: [
-                      const SizedBox(width: 6),
-                      Text(
-                        goalData != null
-                            ? 'Goal: ${goalData['label']}'
-                            : 'Goal: Not set yet',
-                        style: TextStyle(
-                          fontSize: 13, fontWeight: FontWeight.w500,
-                          color: goalData != null
-                              ? const Color(AppConstants.primaryColor)
-                              : Colors.grey,
+                      child: const Text('Goal: Not set yet',
+                        style: TextStyle(fontSize: 13, color: Colors.grey, fontWeight: FontWeight.w500)),
+                    )
+                  else
+                    Wrap(
+                      spacing: 6, runSpacing: 6,
+                      alignment: WrapAlignment.center,
+                      children: goalLabels.map((label) => Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 5),
+                        decoration: BoxDecoration(
+                          color: const Color(AppConstants.primaryColor).withValues(alpha: 0.1),
+                          borderRadius: BorderRadius.circular(20),
+                          border: Border.all(color: const Color(AppConstants.primaryColor).withValues(alpha: 0.3)),
                         ),
-                      ),
-                    ]),
-                  ),
+                        child: Text(label,
+                          style: const TextStyle(
+                            fontSize: 12, fontWeight: FontWeight.w500,
+                            color: Color(AppConstants.primaryColor))),
+                      )).toList(),
+                    ),
                   const SizedBox(height: 12),
 
                   // Stats row

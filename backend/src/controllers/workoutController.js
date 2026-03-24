@@ -91,6 +91,67 @@ async function getPlanWithDays(planId) {
   };
 }
 
+const saveSession = async (req, res) => {
+  try {
+    const userId = req.user.id;
+    const { workout_plan_id, workout_day_id, day_name, set_logs } = req.body;
+    if (!set_logs || !Array.isArray(set_logs) || set_logs.length === 0) {
+      return res.status(400).json({ success: false, message: 'set_logs array required' });
+    }
+    const sessionResult = await db.query(
+      `INSERT INTO workout_sessions (user_id, workout_plan_id, workout_day_id, day_name)
+       VALUES ($1,$2,$3,$4) RETURNING id`,
+      [userId, workout_plan_id || null, workout_day_id || null, day_name || null]
+    );
+    const sessionId = sessionResult.rows[0].id;
+    for (const log of set_logs) {
+      await db.query(
+        `INSERT INTO workout_set_logs (session_id, exercise_id, exercise_name, set_number, reps_done, weight_kg)
+         VALUES ($1,$2,$3,$4,$5,$6)`,
+        [sessionId, log.exercise_id, log.exercise_name, log.set_number,
+         log.reps_done || null, log.weight_kg || null]
+      );
+    }
+    res.json({ success: true, session_id: sessionId });
+  } catch (err) {
+    console.error('Save session error:', err);
+    res.status(500).json({ success: false, message: 'Server error' });
+  }
+};
+
+const getHistory = async (req, res) => {
+  try {
+    const userId = req.user.id;
+    const sessions = await db.query(
+      `SELECT id, day_name, completed_at FROM workout_sessions
+       WHERE user_id = $1 ORDER BY completed_at DESC LIMIT 30`,
+      [userId]
+    );
+    if (sessions.rows.length === 0) return res.json({ success: true, sessions: [] });
+
+    const sessionIds = sessions.rows.map(s => s.id);
+    const logs = await db.query(
+      `SELECT * FROM workout_set_logs WHERE session_id = ANY($1) ORDER BY session_id, exercise_name, set_number`,
+      [sessionIds]
+    );
+
+    const logsBySession = {};
+    for (const log of logs.rows) {
+      (logsBySession[log.session_id] ??= []).push(log);
+    }
+
+    const result = sessions.rows.map(s => ({
+      ...s,
+      logs: logsBySession[s.id] ?? [],
+    }));
+
+    res.json({ success: true, sessions: result });
+  } catch (err) {
+    console.error('Get history error:', err);
+    res.status(500).json({ success: false, message: 'Server error' });
+  }
+};
+
 const updateExerciseVideo = async (req, res) => {
   try {
     const { id } = req.params;
@@ -106,4 +167,4 @@ const updateExerciseVideo = async (req, res) => {
   }
 };
 
-module.exports = { listExercises, assignWorkout, getWorkout, updateExerciseVideo };
+module.exports = { listExercises, assignWorkout, getWorkout, updateExerciseVideo, saveSession, getHistory };

@@ -17,6 +17,28 @@ class _ProfileScreenState extends State<ProfileScreen> {
   final _api     = ApiService();
   final _formKey = GlobalKey<FormState>();
 
+  Future<void> _confirmLogout() async {
+    final confirm = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Log out?'),
+        content: const Text('Are you sure you want to log out?'),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Cancel')),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
+            onPressed: () => Navigator.pop(ctx, true),
+            child: const Text('Log out', style: TextStyle(color: Colors.white)),
+          ),
+        ],
+      ),
+    );
+    if (confirm == true && mounted) {
+      await context.read<AuthProvider>().logout();
+      if (mounted) context.go('/login');
+    }
+  }
+
   // Basic Details
   final _heightCtrl      = TextEditingController();
   final _currWtCtrl      = TextEditingController();
@@ -179,7 +201,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
         leading: BackButton(onPressed: () => context.go('/dashboard')),
         actions: [
           TextButton(
-            onPressed: () { context.read<AuthProvider>().logout(); context.go('/login'); },
+            onPressed: _confirmLogout,
             child: const Text('Logout', style: TextStyle(color: Colors.red)),
           ),
         ],

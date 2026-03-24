@@ -168,6 +168,35 @@ class Tip {
     coachName: j['coach_name'] ?? 'Coach', createdAt: j['created_at']);
 }
 
+class WorkoutSetLog {
+  final int sessionId;
+  final int exerciseId;
+  final String exerciseName;
+  final int setNumber;
+  final int? repsDone;
+  final double? weightKg; // null = bodyweight
+  WorkoutSetLog({required this.sessionId, required this.exerciseId,
+    required this.exerciseName, required this.setNumber,
+    this.repsDone, this.weightKg});
+  factory WorkoutSetLog.fromJson(Map<String, dynamic> j) => WorkoutSetLog(
+    sessionId: j['session_id'], exerciseId: j['exercise_id'],
+    exerciseName: j['exercise_name'], setNumber: j['set_number'],
+    repsDone: j['reps_done'],
+    weightKg: j['weight_kg'] != null ? double.tryParse(j['weight_kg'].toString()) : null);
+}
+
+class WorkoutSession {
+  final int id;
+  final String? dayName;
+  final DateTime completedAt;
+  final List<WorkoutSetLog> logs;
+  WorkoutSession({required this.id, this.dayName, required this.completedAt, required this.logs});
+  factory WorkoutSession.fromJson(Map<String, dynamic> j) => WorkoutSession(
+    id: j['id'], dayName: j['day_name'],
+    completedAt: DateTime.parse(j['completed_at']),
+    logs: (j['logs'] as List? ?? []).map((l) => WorkoutSetLog.fromJson(l)).toList());
+}
+
 // Health goals
 const List<Map<String, String>> healthGoals = [
   {'key': 'lose_weight',       'label': 'Lose Weight'},

@@ -26,7 +26,7 @@ const register = async (req, res) => {
 
     // Check existing
     const existing = await db.query(
-      'SELECT id FROM users WHERE username = $1 OR email = $2',
+      'SELECT id FROM users WHERE LOWER(username) = LOWER($1) OR LOWER(email) = LOWER($2)',
       [username, email]
     );
     if (existing.rows.length > 0) {
@@ -38,7 +38,7 @@ const register = async (req, res) => {
     const result = await db.query(
       `INSERT INTO users (username, email, password, full_name, role)
        VALUES ($1, $2, $3, $4, $5) RETURNING id, username, email, full_name, role`,
-      [username, email, hashedPassword, full_name, role]
+      [username.toLowerCase(), email.toLowerCase(), hashedPassword, full_name, role]
     );
 
     const user = result.rows[0];
@@ -61,7 +61,7 @@ const login = async (req, res) => {
     }
 
     const result = await db.query(
-      'SELECT * FROM users WHERE username = $1',
+      'SELECT * FROM users WHERE LOWER(username) = LOWER($1)',
       [username]
     );
 

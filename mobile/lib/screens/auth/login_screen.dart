@@ -18,6 +18,7 @@ class _LoginScreenState extends State<LoginScreen> {
   final _userCtrl   = TextEditingController();
   final _passCtrl   = TextEditingController();
   bool  _obscure    = true;
+  bool  _rememberMe = true;
 
   @override
   void dispose() {
@@ -29,7 +30,7 @@ class _LoginScreenState extends State<LoginScreen> {
   Future<void> _submit() async {
     if (!_formKey.currentState!.validate()) return;
     final auth = context.read<AuthProvider>();
-    final ok   = await auth.login(_userCtrl.text.trim(), _passCtrl.text);
+    final ok   = await auth.login(_userCtrl.text.trim(), _passCtrl.text, rememberMe: _rememberMe);
     if (ok && mounted) {
       context.go(auth.isCoach ? '/coach' : '/dashboard');
     }
@@ -100,7 +101,18 @@ class _LoginScreenState extends State<LoginScreen> {
                   validator: (v) => v!.isEmpty ? 'Required' : null,
                 ),
 
-                const SizedBox(height: 28),
+                const SizedBox(height: 8),
+                Row(
+                  children: [
+                    Checkbox(
+                      value: _rememberMe,
+                      onChanged: (v) => setState(() => _rememberMe = v ?? true),
+                    ),
+                    const Text('Remember me'),
+                  ],
+                ),
+
+                const SizedBox(height: 16),
 
                 LoadingButton(
                   text: 'Sign In',

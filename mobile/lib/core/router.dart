@@ -24,6 +24,11 @@ import '../screens/coach/assign_diet_screen.dart';
 import '../screens/coach/assign_workout_screen.dart';
 import '../screens/coach/assign_lifestyle_screen.dart';
 import '../screens/coach/add_tips_screen.dart';
+import '../screens/coach/coach_appointments_screen.dart';
+
+// Participant extras
+import '../screens/participant/appointments_screen.dart';
+import '../screens/participant/workout_history_screen.dart';
 
 GoRouter buildRouter(AuthProvider auth) {
   return GoRouter(
@@ -51,10 +56,13 @@ GoRouter buildRouter(AuthProvider auth) {
       GoRoute(path: '/meals',     builder: (_, __) => const MyMealsScreen()),
       GoRoute(path: '/workout',   builder: (_, __) => const WorkoutScreen()),
       GoRoute(path: '/progress',  builder: (_, __) => const ProgressScreen()),
-      GoRoute(path: '/profile',   builder: (_, __) => const ProfileScreen()),
+      GoRoute(path: '/profile',      builder: (_, __) => const ProfileScreen()),
+      GoRoute(path: '/appointments',   builder: (_, __) => const ParticipantAppointmentsScreen()),
+      GoRoute(path: '/workout/history', builder: (_, __) => const WorkoutHistoryScreen()),
 
       // ── Coach ─────────────────────────────────────────
       GoRoute(path: '/coach', builder: (_, __) => const CoachDashboardScreen()),
+      GoRoute(path: '/coach/appointments', builder: (_, __) => const CoachAppointmentsScreen()),
       GoRoute(
         path: '/coach/client/:id',
         builder: (_, state) => ClientProfileScreen(

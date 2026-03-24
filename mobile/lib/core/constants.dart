@@ -1,7 +1,7 @@
 // lib/core/constants.dart
 
 class AppConstants {
-  static const String baseUrl = 'https://100-53-3-232.sslip.io/api';
+  static const String baseUrl = String.fromEnvironment('BASE_URL', defaultValue: 'http://localhost:3000/api');
   static const String version = String.fromEnvironment('BUILD_NUMBER', defaultValue: 'dev');
 
   // Storage keys
