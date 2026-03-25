@@ -1,7 +1,6 @@
 // lib/screens/participant/food_log_screen.dart
 import 'dart:async';
 import 'package:flutter/material.dart';
-import 'package:go_router/go_router.dart';
 import '../../services/api_service.dart';
 import '../../models/models.dart';
 import '../../data/indian_meals_db.dart';
@@ -30,6 +29,7 @@ class _FoodLogScreenState extends State<FoodLogScreen> {
   List<FoodItem>      _apiResults   = [];
   List<MealLogEntry>  _todayLog     = [];
   DietPlan?           _dietPlan;
+  String?             _preselectedSlot;
 
   bool _searchingApi  = false;
   bool _loadingLog    = false;
@@ -306,17 +306,18 @@ class _FoodLogScreenState extends State<FoodLogScreen> {
 
   // ── Food detail dialog ────────────────────────────────────────────────────
 
-  void _showFoodDetail(FoodItem food) {
+  void _showFoodDetail(FoodItem food, {String? preselectedSlot}) {
     showDialog(
       context: context,
       builder: (ctx) => Dialog(
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
         insetPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 40),
         child: _FoodDetailDialog(
-          food:     food,
-          dietPlan: _dietPlan,
-          todayLog: _todayLog,
-          onAdd:    (serving, mealSlot) {
+          food:          food,
+          dietPlan:      _dietPlan,
+          todayLog:      _todayLog,
+          initialSlot:   preselectedSlot ?? _preselectedSlot ?? 'breakfast',
+          onAdd: (serving, mealSlot) {
             Navigator.pop(ctx);
             _addToLog(food, serving, mealSlot);
           },
@@ -343,10 +344,7 @@ class _FoodLogScreenState extends State<FoodLogScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('Food Log'),
-        leading: BackButton(onPressed: () => context.go('/dashboard')),
-      ),
+      appBar: AppBar(title: const Text('Food Log')),
       body: Column(
         children: [
           _searchBar(),
@@ -534,6 +532,165 @@ class _FoodLogScreenState extends State<FoodLogScreen> {
     );
   }
 
+  // ── Grouped meal log ─────────────────────────────────────────────────────
+
+  static const _slotOrder = ['breakfast', 'lunch', 'snack', 'dinner', 'other'];
+
+  static const _slotMeta = {
+    'breakfast': (label: 'Breakfast', icon: Icons.wb_sunny_outlined,    color: Colors.amber),
+    'lunch':     (label: 'Lunch',     icon: Icons.light_mode,            color: Colors.orange),
+    'snack':     (label: 'Snack',     icon: Icons.cookie_outlined,       color: Color(0xFF795548)),
+    'dinner':    (label: 'Dinner',    icon: Icons.nights_stay_outlined,  color: Colors.indigo),
+    'other':     (label: 'Other',     icon: Icons.more_horiz,            color: Colors.grey),
+  };
+
+  List<Widget> _buildGroupedLog() {
+    final grouped = <String, List<MealLogEntry>>{};
+    for (final e in _todayLog) {
+      (grouped[e.mealSlot] ??= []).add(e);
+    }
+    final widgets = <Widget>[];
+    for (final slot in _slotOrder) {
+      final entries = grouped[slot];
+      if (entries == null || entries.isEmpty) continue;
+      final target = _dietPlan?.meals.cast<DietPlanMeal?>()
+          .firstWhere((m) => m!.mealSlot == slot, orElse: () => null);
+      widgets.add(_mealSlotSection(slot, entries, target));
+    }
+    return widgets;
+  }
+
+  Widget _mealSlotSection(String slot, List<MealLogEntry> entries, DietPlanMeal? target) {
+    final meta   = _slotMeta[slot]!;
+    final color  = meta.color;
+    final slotCal    = entries.fold(0.0, (s, e) => s + e.calories);
+    final slotP      = entries.fold(0.0, (s, e) => s + e.proteinG);
+    final slotC      = entries.fold(0.0, (s, e) => s + e.carbsG);
+    final slotF      = entries.fold(0.0, (s, e) => s + e.fatG);
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        // ── Slot header ──
+        Padding(
+          padding: const EdgeInsets.fromLTRB(4, 16, 4, 6),
+          child: Row(
+            children: [
+              Container(
+                width: 28, height: 28,
+                decoration: BoxDecoration(
+                  color: color.withValues(alpha: 0.12),
+                  shape: BoxShape.circle,
+                ),
+                child: Icon(meta.icon, size: 15, color: color),
+              ),
+              const SizedBox(width: 8),
+              Text(meta.label,
+                style: TextStyle(
+                  fontWeight: FontWeight.bold, fontSize: 14, color: color)),
+              const SizedBox(width: 6),
+              Text('${slotCal.toStringAsFixed(0)} kcal',
+                style: TextStyle(fontSize: 12,
+                  color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.5))),
+              const Spacer(),
+              TextButton.icon(
+                onPressed: () {
+                  setState(() => _preselectedSlot = slot);
+                  _searchFocus.requestFocus();
+                },
+                icon: const Icon(Icons.add, size: 14),
+                label: const Text('Add', style: TextStyle(fontSize: 12)),
+                style: TextButton.styleFrom(
+                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                  minimumSize: Size.zero,
+                  tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                ),
+              ),
+            ],
+          ),
+        ),
+
+        // ── Food tiles ──
+        ...entries.map(_logEntryTile),
+
+        // ── Per-slot progress bars (if diet plan has a target for this slot) ──
+        if (target != null)
+          _slotProgressBars(target, slotCal, slotP, slotC, slotF),
+
+        const SizedBox(height: 4),
+      ],
+    );
+  }
+
+  Widget _slotProgressBars(
+      DietPlanMeal target, double cal, double p, double c, double f) {
+    return Card(
+      margin: const EdgeInsets.only(bottom: 4),
+      color: Theme.of(context).colorScheme.surfaceContainerHighest.withValues(alpha: 0.5),
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(14, 10, 14, 12),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text('vs target',
+              style: TextStyle(fontSize: 10, fontWeight: FontWeight.w600,
+                color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.45),
+                letterSpacing: 0.5)),
+            const SizedBox(height: 8),
+            _macroBar('Cal', cal, target.calories, Colors.deepOrange),
+            const SizedBox(height: 5),
+            _macroBar('P',   p,   target.proteinG,  Colors.blue),
+            const SizedBox(height: 5),
+            _macroBar('C',   c,   target.carbsG,    Colors.orange),
+            const SizedBox(height: 5),
+            _macroBar('F',   f,   target.fatG,      Colors.red),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _macroBar(String label, double logged, double targetVal, Color color) {
+    final ratio    = targetVal > 0 ? (logged / targetVal).clamp(0.0, 1.5) : 0.0;
+    final pct      = targetVal > 0 ? (logged / targetVal * 100).round() : 0;
+    final barColor = pct > 120 ? Colors.red
+        : pct > 100 ? Colors.orange
+        : color;
+    final unit = label == 'Cal' ? 'kcal' : 'g';
+    return Row(
+      children: [
+        SizedBox(
+          width: 22,
+          child: Text(label,
+            style: TextStyle(fontSize: 10, fontWeight: FontWeight.w600,
+              color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.6))),
+        ),
+        Expanded(
+          child: ClipRRect(
+            borderRadius: BorderRadius.circular(4),
+            child: LinearProgressIndicator(
+              value: (ratio / 1.5),   // scale so 150% fills bar
+              minHeight: 7,
+              backgroundColor: barColor.withValues(alpha: 0.12),
+              valueColor: AlwaysStoppedAnimation(barColor),
+            ),
+          ),
+        ),
+        const SizedBox(width: 8),
+        SizedBox(
+          width: 72,
+          child: Text(
+            '${logged.toStringAsFixed(label == 'Cal' ? 0 : 1)}/'
+            '${targetVal.toStringAsFixed(label == 'Cal' ? 0 : 1)}$unit',
+            style: TextStyle(fontSize: 9,
+              color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.5)),
+            textAlign: TextAlign.right,
+          ),
+        ),
+      ],
+    );
+  }
+
   // ── Log body (shown when not searching) ───────────────────────────────────
 
   Widget _logBody() {
@@ -565,7 +722,7 @@ class _FoodLogScreenState extends State<FoodLogScreen> {
           else if (_todayLog.isEmpty)
             _emptyLog()
           else
-            ..._todayLog.map(_logEntryTile),
+            ..._buildGroupedLog(),
           const SizedBox(height: 20),
         ],
       ),
@@ -734,12 +891,14 @@ class _FoodDetailDialog extends StatefulWidget {
   final FoodItem food;
   final DietPlan? dietPlan;
   final List<MealLogEntry> todayLog;
+  final String initialSlot;
   final void Function(ServingSize serving, String mealSlot) onAdd;
 
   const _FoodDetailDialog({
     required this.food,
     required this.dietPlan,
     required this.todayLog,
+    required this.initialSlot,
     required this.onAdd,
   });
 
@@ -749,7 +908,13 @@ class _FoodDetailDialog extends StatefulWidget {
 
 class _FoodDetailDialogState extends State<_FoodDetailDialog> {
   int    _servingIdx  = 0;
-  String _mealSlot    = 'breakfast';
+  late String _mealSlot;
+
+  @override
+  void initState() {
+    super.initState();
+    _mealSlot = widget.initialSlot;
+  }
   bool   _adding      = false;
 
   ServingSize get _serving =>

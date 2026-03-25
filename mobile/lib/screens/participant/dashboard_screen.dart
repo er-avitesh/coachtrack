@@ -17,7 +17,8 @@ class DashboardScreen extends StatefulWidget {
   State<DashboardScreen> createState() => _DashboardScreenState();
 }
 
-class _DashboardScreenState extends State<DashboardScreen> {
+class _DashboardScreenState extends State<DashboardScreen>
+    with TickerProviderStateMixin {
   final _api = ApiService();
 
   DailyTracking?       _today;
@@ -129,6 +130,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
     final next = !(_manualDone[category] ?? false);
     setState(() => _manualDone[category] = next);
     await prefs.setBool('manual_done_${category}_$d', next);
+    if (next && mounted) _showGoalAnimation();
   }
 
   Future<void> _showValueDialog(LifestyleItem item) async {
@@ -177,6 +179,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
       final res = await _api.post('/tracking/add', body);
       if (res['success'] == true && res['tracking'] != null) {
         setState(() => _today = DailyTracking.fromJson(res['tracking']));
+        if (mounted) _showGoalAnimation();
       }
     } catch (_) {}
   }
@@ -365,6 +368,8 @@ class _DashboardScreenState extends State<DashboardScreen> {
                       ),
                     ),
                     const SizedBox(height: 8),
+                    _pointsCard(),
+                    const SizedBox(height: 10),
                     _todayGoals(context),
                     const SizedBox(height: 24),
                   ],
@@ -404,7 +409,6 @@ class _DashboardScreenState extends State<DashboardScreen> {
                 ],
               ),
             ),
-      bottomNavigationBar: _bottomNav(context),
     );
   }
 
@@ -602,6 +606,173 @@ class _DashboardScreenState extends State<DashboardScreen> {
           ),
         );
       }).toList()),
+    );
+  }
+
+  // ── Points system ─────────────────────────────────────────────────────────
+
+  ({int earned, int total}) _computePoints() {
+    int total = 0, earned = 0;
+
+    // Workout goal
+    if (_workoutPlan != null && _nextDayIndex != null) {
+      total++;
+      if (_workoutDoneToday) earned++;
+    }
+
+    // Lifestyle goals (same done-check as _todayGoals)
+    if (_lifestylePlan != null) {
+      for (final item in _lifestylePlan!.items) {
+        total++;
+        bool done = false;
+        final target = double.tryParse(item.targetValue ?? '');
+        if (item.category == 'steps' && target != null) {
+          done = (_today?.steps ?? 0) >= target;
+        } else if (item.category == 'water' && target != null) {
+          done = (_today?.waterIntakeLiters ?? 0) >= target;
+        } else if (item.category == 'sleep' && target != null) {
+          done = (_today?.sleepHours ?? 0) >= target;
+        } else {
+          done = _manualDone[item.category] ?? false;
+        }
+        if (done) earned++;
+      }
+    }
+
+    return (earned: earned, total: total);
+  }
+
+  double get _pointsToday {
+    final p = _computePoints();
+    if (p.total == 0) return 0;
+    return (p.earned / p.total) * 10;
+  }
+
+  void _showGoalAnimation() {
+    final overlay = Overlay.of(context);
+    late OverlayEntry entry;
+    final ctrl = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 1000),
+    );
+
+    final scale = TweenSequence<double>([
+      TweenSequenceItem(tween: Tween(begin: 0.3, end: 1.25), weight: 35),
+      TweenSequenceItem(tween: Tween(begin: 1.25, end: 1.0), weight: 20),
+      TweenSequenceItem(tween: ConstantTween(1.0),            weight: 25),
+      TweenSequenceItem(tween: Tween(begin: 1.0, end: 0.0),  weight: 20),
+    ]).animate(ctrl);
+
+    final fade = Tween<double>(begin: 1.0, end: 0.0).animate(
+      CurvedAnimation(parent: ctrl, curve: const Interval(0.75, 1.0)),
+    );
+
+    entry = OverlayEntry(
+      builder: (_) => AnimatedBuilder(
+        animation: ctrl,
+        builder: (_, __) => Positioned.fill(
+          child: IgnorePointer(
+            child: Center(
+              child: Opacity(
+                opacity: fade.value,
+                child: Transform.scale(
+                  scale: scale.value,
+                  child: Container(
+                    width: 80, height: 80,
+                    decoration: BoxDecoration(
+                      color: Colors.green.shade400,
+                      shape: BoxShape.circle,
+                      boxShadow: [
+                        BoxShadow(
+                          color: Colors.green.withValues(alpha: 0.4),
+                          blurRadius: 20,
+                          spreadRadius: 4,
+                        ),
+                      ],
+                    ),
+                    child: const Icon(
+                      Icons.thumb_up_rounded,
+                      color: Colors.white,
+                      size: 38,
+                    ),
+                  ),
+                ),
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+
+    overlay.insert(entry);
+    ctrl.forward().then((_) {
+      entry.remove();
+      ctrl.dispose();
+    });
+  }
+
+  Widget _pointsCard() {
+    final p     = _computePoints();
+    final pts   = _pointsToday;
+    final color = pts >= 7 ? Colors.green
+        : pts >= 4 ? Colors.orange
+        : Colors.red;
+
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+        child: Row(
+          children: [
+            SizedBox(
+              width: 64, height: 64,
+              child: Stack(
+                alignment: Alignment.center,
+                children: [
+                  CircularProgressIndicator(
+                    value: pts / 10,
+                    strokeWidth: 6,
+                    backgroundColor: color.withValues(alpha: 0.12),
+                    valueColor: AlwaysStoppedAnimation(color),
+                  ),
+                  Text(
+                    pts.toStringAsFixed(1),
+                    style: TextStyle(
+                      fontSize: 13, fontWeight: FontWeight.bold, color: color),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(width: 16),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      Text(
+                        '${pts.toStringAsFixed(1)} / 10 pts today',
+                        style: const TextStyle(
+                          fontWeight: FontWeight.bold, fontSize: 15),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 2),
+                  Text(
+                    p.total == 0
+                        ? 'No goals assigned yet'
+                        : '${p.earned} of ${p.total} goals complete',
+                    style: TextStyle(
+                      fontSize: 12,
+                      color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.55),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            Icon(Icons.emoji_events_outlined, color: color, size: 28),
+          ],
+        ),
+      ),
     );
   }
 
@@ -855,21 +1026,4 @@ class _DashboardScreenState extends State<DashboardScreen> {
     );
   }
 
-  // ── Bottom nav ────────────────────────────────────────────────────────────
-
-  Widget _bottomNav(BuildContext context) {
-    return NavigationBar(
-      selectedIndex: 0,
-      onDestinationSelected: (i) {
-        const routes = ['/dashboard', '/tracking', '/food-log', '/workout'];
-        context.go(routes[i]);
-      },
-      destinations: const [
-        NavigationDestination(icon: Icon(Icons.home_outlined), selectedIcon: Icon(Icons.home), label: 'Home'),
-        NavigationDestination(icon: Icon(Icons.edit_note), label: 'Track'),
-        NavigationDestination(icon: Icon(Icons.menu_book_outlined), selectedIcon: Icon(Icons.menu_book), label: 'Food Log'),
-        NavigationDestination(icon: Icon(Icons.fitness_center), label: 'Workout'),
-      ],
-    );
-  }
 }

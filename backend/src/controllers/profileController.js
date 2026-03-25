@@ -88,7 +88,7 @@ const createOrUpdate = async (req, res) => {
     res.json({ success: true, profile: result.rows[0] });
   } catch (err) {
     console.error('Profile upsert error:', err);
-    res.status(500).json({ success: false, message: 'Server error' });
+    res.status(500).json({ success: false, message: err.message || 'Server error' });
   }
 };
 

@@ -104,10 +104,7 @@ class _ProgressScreenState extends State<ProgressScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('My Progress'),
-        leading: BackButton(onPressed: () => context.go('/dashboard')),
-      ),
+      appBar: AppBar(title: const Text('My Progress')),
       body: _loading
           ? const Center(child: CircularProgressIndicator())
           : _data.isEmpty

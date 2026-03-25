@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
 import '../providers/auth_provider.dart';
+import '../widgets/participant_shell.dart';
 
 // Auth screens
 import '../screens/auth/login_screen.dart';
@@ -25,6 +26,7 @@ import '../screens/coach/assign_workout_screen.dart';
 import '../screens/coach/assign_lifestyle_screen.dart';
 import '../screens/coach/add_tips_screen.dart';
 import '../screens/coach/coach_appointments_screen.dart';
+import '../screens/coach/client_progress_screen.dart';
 
 // Participant extras
 import '../screens/participant/appointments_screen.dart';
@@ -50,19 +52,46 @@ GoRouter buildRouter(AuthProvider auth) {
       GoRoute(path: '/login',    builder: (_, __) => const LoginScreen()),
       GoRoute(path: '/register', builder: (_, __) => const RegisterScreen()),
 
-      // ── Participant ───────────────────────────────────
-      GoRoute(path: '/dashboard', builder: (_, __) => const DashboardScreen()),
-      GoRoute(path: '/tracking',  builder: (_, __) => const TrackingScreen()),
-      GoRoute(path: '/meals/calculator', builder: (_, __) => const MealCalculatorScreen()),
-      GoRoute(path: '/meals',     builder: (_, __) => const MyMealsScreen()),
-      GoRoute(path: '/workout',   builder: (_, __) => const WorkoutScreen()),
-      GoRoute(path: '/progress',  builder: (_, __) => const ProgressScreen()),
-      GoRoute(path: '/profile',      builder: (_, __) => const ProfileScreen()),
-      GoRoute(path: '/appointments',   builder: (_, __) => const ParticipantAppointmentsScreen()),
-      GoRoute(path: '/workout/history', builder: (_, __) => const WorkoutHistoryScreen()),
-      GoRoute(path: '/food-log',        builder: (_, __) => const FoodLogScreen()),
+      // ── Participant shell (bottom nav persists across these 5 tabs) ──────
+      StatefulShellRoute.indexedStack(
+        builder: (_, __, shell) => ParticipantShell(navigationShell: shell),
+        branches: [
+          // Tab 0 — Home
+          StatefulShellBranch(routes: [
+            GoRoute(path: '/dashboard', builder: (_, __) => const DashboardScreen()),
+          ]),
+          // Tab 1 — Track
+          StatefulShellBranch(routes: [
+            GoRoute(path: '/tracking', builder: (_, __) => const TrackingScreen()),
+          ]),
+          // Tab 2 — Food Log
+          StatefulShellBranch(routes: [
+            GoRoute(path: '/food-log', builder: (_, __) => const FoodLogScreen()),
+          ]),
+          // Tab 3 — Workout (+ history nested)
+          StatefulShellBranch(routes: [
+            GoRoute(
+              path: '/workout',
+              builder: (_, __) => const WorkoutScreen(),
+              routes: [
+                GoRoute(path: 'history', builder: (_, __) => const WorkoutHistoryScreen()),
+              ],
+            ),
+          ]),
+          // Tab 4 — Progress
+          StatefulShellBranch(routes: [
+            GoRoute(path: '/progress', builder: (_, __) => const ProgressScreen()),
+          ]),
+        ],
+      ),
 
-      // ── Coach ─────────────────────────────────────────
+      // ── Participant secondary (no bottom nav) ──────────────────────────
+      GoRoute(path: '/profile',      builder: (_, __) => const ProfileScreen()),
+      GoRoute(path: '/appointments', builder: (_, __) => const ParticipantAppointmentsScreen()),
+      GoRoute(path: '/meals/calculator', builder: (_, __) => const MealCalculatorScreen()),
+      GoRoute(path: '/meals',            builder: (_, __) => const MyMealsScreen()),
+
+      // ── Coach ─────────────────────────────────────────────────────────
       GoRoute(path: '/coach', builder: (_, __) => const CoachDashboardScreen()),
       GoRoute(path: '/coach/appointments', builder: (_, __) => const CoachAppointmentsScreen()),
       GoRoute(
@@ -92,6 +121,12 @@ GoRouter buildRouter(AuthProvider auth) {
       GoRoute(
         path: '/coach/client/:id/tips',
         builder: (_, state) => AddTipsScreen(
+          clientId: int.parse(state.pathParameters['id']!),
+        ),
+      ),
+      GoRoute(
+        path: '/coach/client/:id/progress',
+        builder: (_, state) => ClientProgressScreen(
           clientId: int.parse(state.pathParameters['id']!),
         ),
       ),
