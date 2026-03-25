@@ -221,3 +221,111 @@ const List<Map<String, dynamic>> lifestyleCategories = [
   {'key': 'meal_timing', 'label': 'Meal Timing',      'unit': null,         'default': '7am / 1pm / 4pm / 8pm'},
   {'key': 'custom',      'label': 'Custom',           'unit': null,         'default': null},
 ];
+
+// ── Food Log Models ───────────────────────────────────────────────────────────
+
+class ServingSize {
+  final String label;
+  final double grams;
+  const ServingSize({required this.label, required this.grams});
+  Map<String, dynamic> toJson() => {'label': label, 'grams': grams};
+}
+
+class FoodItem {
+  final String id;
+  final String name;
+  final String nameHi;
+  final double caloriesPer100g;
+  final double proteinG;
+  final double carbsG;
+  final double fatG;
+  final double fiberG;
+  final List<ServingSize> servings;
+  final String source; // 'local', 'fatsecret', 'custom'
+
+  const FoodItem({
+    required this.id,
+    required this.name,
+    required this.nameHi,
+    required this.caloriesPer100g,
+    required this.proteinG,
+    required this.carbsG,
+    required this.fatG,
+    required this.fiberG,
+    required this.servings,
+    this.source = 'local',
+  });
+
+  factory FoodItem.fromJson(Map<String, dynamic> j) => FoodItem(
+    id: j['id']?.toString() ?? '',
+    name: j['name'] ?? '',
+    nameHi: j['name_hi'] ?? '',
+    caloriesPer100g: double.tryParse(j['calories_per_100g'].toString()) ?? 0,
+    proteinG:  double.tryParse(j['protein_g'].toString()) ?? 0,
+    carbsG:    double.tryParse(j['carbs_g'].toString()) ?? 0,
+    fatG:      double.tryParse(j['fat_g'].toString()) ?? 0,
+    fiberG:    double.tryParse(j['fiber_g'].toString()) ?? 0,
+    servings: (j['servings'] as List? ?? []).map((s) => ServingSize(
+      label: s['label'] ?? '',
+      grams: double.tryParse(s['grams'].toString()) ?? 100,
+    )).toList(),
+    source: j['source'] ?? 'fatsecret',
+  );
+
+  Map<String, double> nutrientsFor(double grams) {
+    final r = grams / 100;
+    return {
+      'calories':  caloriesPer100g * r,
+      'protein_g': proteinG * r,
+      'carbs_g':   carbsG * r,
+      'fat_g':     fatG * r,
+      'fiber_g':   fiberG * r,
+    };
+  }
+
+  // Default serving is first in list, or 100g
+  ServingSize get defaultServing =>
+      servings.isNotEmpty ? servings.first : const ServingSize(label: '100g', grams: 100);
+}
+
+class MealLogEntry {
+  final int id;
+  final String foodName;
+  final String? foodNameHi;
+  final String servingLabel;
+  final double servingGrams;
+  final double calories;
+  final double proteinG;
+  final double carbsG;
+  final double fatG;
+  final double fiberG;
+  final DateTime loggedAt;
+
+  MealLogEntry({
+    required this.id,
+    required this.foodName,
+    this.foodNameHi,
+    required this.servingLabel,
+    required this.servingGrams,
+    required this.calories,
+    required this.proteinG,
+    required this.carbsG,
+    required this.fatG,
+    required this.fiberG,
+    required this.loggedAt,
+  });
+
+  factory MealLogEntry.fromJson(Map<String, dynamic> j) => MealLogEntry(
+    id: j['id'],
+    foodName: j['food_name'],
+    foodNameHi: j['food_name_hi'],
+    servingLabel: j['serving_label'] ?? '100g',
+    servingGrams: double.tryParse(j['serving_grams'].toString()) ?? 100,
+    calories: double.tryParse(j['calories'].toString()) ?? 0,
+    proteinG: double.tryParse(j['protein_g'].toString()) ?? 0,
+    carbsG:   double.tryParse(j['carbs_g'].toString()) ?? 0,
+    fatG:     double.tryParse(j['fat_g'].toString()) ?? 0,
+    fiberG:   double.tryParse(j['fiber_g'].toString()) ?? 0,
+    loggedAt: DateTime.parse(j['created_at']),
+  );
+}

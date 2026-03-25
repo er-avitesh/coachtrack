@@ -15,6 +15,7 @@ const photoRoutes    = require('./routes/photos');
 const coachRoutes        = require('./routes/coach');
 const lifestyleRoutes    = require('./routes/lifestyle');
 const appointmentRoutes  = require('./routes/appointments');
+const foodRoutes         = require('./routes/food');
 
 const app = express();
 
@@ -36,6 +37,7 @@ app.use('/api/photos',   photoRoutes);
 app.use('/api/coach',        coachRoutes);
 app.use('/api/lifestyle',    lifestyleRoutes);
 app.use('/api/appointments', appointmentRoutes);
+app.use('/api/food',         foodRoutes);
 
 // ── Health check ──────────────────────────────────────────
 app.get('/health', (req, res) => res.json({ status: 'ok', timestamp: new Date() }));

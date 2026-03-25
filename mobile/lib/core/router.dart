@@ -29,6 +29,7 @@ import '../screens/coach/coach_appointments_screen.dart';
 // Participant extras
 import '../screens/participant/appointments_screen.dart';
 import '../screens/participant/workout_history_screen.dart';
+import '../screens/participant/food_log_screen.dart';
 
 GoRouter buildRouter(AuthProvider auth) {
   return GoRouter(
@@ -59,6 +60,7 @@ GoRouter buildRouter(AuthProvider auth) {
       GoRoute(path: '/profile',      builder: (_, __) => const ProfileScreen()),
       GoRoute(path: '/appointments',   builder: (_, __) => const ParticipantAppointmentsScreen()),
       GoRoute(path: '/workout/history', builder: (_, __) => const WorkoutHistoryScreen()),
+      GoRoute(path: '/food-log',        builder: (_, __) => const FoodLogScreen()),
 
       // ── Coach ─────────────────────────────────────────
       GoRoute(path: '/coach', builder: (_, __) => const CoachDashboardScreen()),

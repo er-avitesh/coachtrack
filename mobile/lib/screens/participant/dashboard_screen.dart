@@ -573,7 +573,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
   Widget _quickActions(BuildContext context) {
     final actions = [
       ('Log Today', Icons.add_circle_outline,  Colors.blue,   '/tracking'),
-      ('My Meals',  Icons.restaurant_menu,      Colors.orange, '/meals'),
+      ('Food Log',  Icons.menu_book_outlined,    Colors.orange, '/food-log'),
       ('Workout',   Icons.fitness_center,        Colors.green,  '/workout'),
       ('Progress',  Icons.show_chart,            Colors.purple, '/progress'),
     ];
