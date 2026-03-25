@@ -276,15 +276,30 @@ class _ClientProfileScreenState extends State<ClientProfileScreen> {
             // ── Recent tracking ───────────────────────────────
             SectionHeader(
               title: 'Recent Progress',
-              action: TextButton.icon(
-                onPressed: () => context.go('/coach/client/${widget.clientId}/progress'),
-                icon: const Icon(Icons.show_chart, size: 14),
-                label: const Text('View Charts', style: TextStyle(fontSize: 12)),
-                style: TextButton.styleFrom(
-                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                  minimumSize: Size.zero,
-                  tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                ),
+              action: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  TextButton.icon(
+                    onPressed: () => context.push('/coach/client/${widget.clientId}/goal-tracking'),
+                    icon: const Icon(Icons.checklist, size: 14),
+                    label: const Text('Goals', style: TextStyle(fontSize: 12)),
+                    style: TextButton.styleFrom(
+                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                      minimumSize: Size.zero,
+                      tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                    ),
+                  ),
+                  TextButton.icon(
+                    onPressed: () => context.push('/coach/client/${widget.clientId}/progress'),
+                    icon: const Icon(Icons.show_chart, size: 14),
+                    label: const Text('Charts', style: TextStyle(fontSize: 12)),
+                    style: TextButton.styleFrom(
+                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                      minimumSize: Size.zero,
+                      tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                    ),
+                  ),
+                ],
               ),
             ),
             const SizedBox(height: 8),

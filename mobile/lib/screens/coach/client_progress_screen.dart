@@ -1,6 +1,7 @@
 // lib/screens/coach/client_progress_screen.dart
 import 'package:flutter/material.dart';
 import 'package:fl_chart/fl_chart.dart';
+import 'package:go_router/go_router.dart';
 import '../../services/api_service.dart';
 import '../../models/models.dart';
 import '../../widgets/app_widgets.dart';
@@ -89,7 +90,10 @@ class _ClientProgressScreenState extends State<ClientProgressScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('Progress Report')),
+      appBar: AppBar(
+        title: const Text('Progress Report'),
+        leading: BackButton(onPressed: () => context.pop()),
+      ),
       body: _loading
           ? const Center(child: CircularProgressIndicator())
           : _data.isEmpty

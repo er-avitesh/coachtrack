@@ -63,7 +63,7 @@ class _WorkoutHistoryScreenState extends State<WorkoutHistoryScreen> {
     return Scaffold(
       appBar: AppBar(
         title: const Text('Workout History'),
-        leading: BackButton(onPressed: () => context.go('/workout')),
+        leading: BackButton(onPressed: () => context.pop()),
       ),
       body: _loading
           ? const Center(child: CircularProgressIndicator())

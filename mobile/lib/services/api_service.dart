@@ -11,6 +11,10 @@ class ApiService {
 
   String? _token;
 
+  /// Called when any API request returns 401 (token expired / invalid).
+  /// Set this in AuthProvider to trigger automatic logout.
+  void Function()? onUnauthorized;
+
   Future<void> loadToken() async {
     final prefs = await SharedPreferences.getInstance();
     _token = prefs.getString(AppConstants.tokenKey);
@@ -71,6 +75,9 @@ class ApiService {
     final body = jsonDecode(res.body);
     if (res.statusCode >= 200 && res.statusCode < 300) {
       return body;
+    }
+    if (res.statusCode == 401) {
+      onUnauthorized?.call();
     }
     throw ApiException(body['message'] ?? 'Request failed', res.statusCode);
   }

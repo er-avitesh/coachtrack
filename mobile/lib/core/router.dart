@@ -27,6 +27,7 @@ import '../screens/coach/assign_lifestyle_screen.dart';
 import '../screens/coach/add_tips_screen.dart';
 import '../screens/coach/coach_appointments_screen.dart';
 import '../screens/coach/client_progress_screen.dart';
+import '../screens/coach/client_goal_tracking_screen.dart';
 
 // Participant extras
 import '../screens/participant/appointments_screen.dart';
@@ -127,6 +128,12 @@ GoRouter buildRouter(AuthProvider auth) {
       GoRoute(
         path: '/coach/client/:id/progress',
         builder: (_, state) => ClientProgressScreen(
+          clientId: int.parse(state.pathParameters['id']!),
+        ),
+      ),
+      GoRoute(
+        path: '/coach/client/:id/goal-tracking',
+        builder: (_, state) => ClientGoalTrackingScreen(
           clientId: int.parse(state.pathParameters['id']!),
         ),
       ),

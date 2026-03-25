@@ -95,10 +95,7 @@ class _TrackingScreenState extends State<TrackingScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('Daily Tracking'),
-        leading: BackButton(onPressed: () => context.go('/dashboard')),
-      ),
+      appBar: AppBar(title: const Text('Daily Tracking')),
       body: _loading
           ? const Center(child: CircularProgressIndicator())
           : Form(

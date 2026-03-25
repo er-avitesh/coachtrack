@@ -33,8 +33,39 @@ class _DashboardScreenState extends State<DashboardScreen>
   bool                 _loading         = true;
   Map<String, bool>    _manualDone      = {};
 
+  GoRouter? _goRouter;
+
   @override
-  void initState() { super.initState(); _load(); _loadManualDone(); }
+  void initState() {
+    super.initState();
+    _load();
+    _loadManualDone();
+    // Refresh workout/goal state whenever any navigation happens (e.g. switching back from Workout tab)
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) {
+        _goRouter = GoRouter.of(context);
+        _goRouter!.routerDelegate.addListener(_onRouteChange);
+      }
+    });
+  }
+
+  @override
+  void dispose() {
+    _goRouter?.routerDelegate.removeListener(_onRouteChange);
+    super.dispose();
+  }
+
+  void _onRouteChange() {
+    if (!mounted) return;
+    _refreshGoalState();
+  }
+
+  Future<void> _refreshGoalState() async {
+    if (_workoutPlan != null) {
+      await _resolveNextDay(_workoutPlan!);
+    }
+    await _loadManualDone();
+  }
 
   Future<void> _load() async {
     try {

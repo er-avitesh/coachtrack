@@ -21,6 +21,11 @@ class AuthProvider extends ChangeNotifier {
 
   // Load stored session on app start
   Future<void> initialize() async {
+    // Auto-logout when any API call returns 401 (expired token)
+    _api.onUnauthorized = () {
+      if (_user != null) logout();
+    };
+
     final prefs = await SharedPreferences.getInstance();
     final rememberMe = prefs.getBool('remember_me') ?? true;
     if (!rememberMe) {

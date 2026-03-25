@@ -36,59 +36,9 @@ class _CoachDashboardScreenState extends State<CoachDashboardScreen> {
   }
 
   void _showAddClientDialog() {
-    final ctrl = TextEditingController();
-    bool adding = false;
-
     showDialog(
       context: context,
-      builder: (_) => StatefulBuilder(
-        builder: (ctx, setDialogState) => AlertDialog(
-          title: const Text('Add Client'),
-          content: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              const Text('Enter the participant\'s username to add them as your client.',
-                style: TextStyle(color: Color(AppConstants.textSecondary), fontSize: 13)),
-              const SizedBox(height: 14),
-              TextField(
-                controller: ctrl,
-                decoration: const InputDecoration(
-                  labelText: 'Username',
-                  hintText: 'e.g. john_doe',
-                  prefixIcon: Icon(Icons.person_search),
-                ),
-                autofocus: true,
-              ),
-            ],
-          ),
-          actions: [
-            TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Cancel')),
-            ElevatedButton(
-              onPressed: adding ? null : () async {
-                if (ctrl.text.isEmpty) return;
-                setDialogState(() => adding = true);
-                try {
-                  final res = await _api.post('/coach/clients/add',
-                      {'participant_username': ctrl.text.trim()});
-                  Navigator.pop(ctx);
-                  _load();
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(content: Text(res['message'] ?? 'Client added'),
-                        backgroundColor: Colors.green));
-                } catch (e) {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(content: Text(e.toString())));
-                }
-                setDialogState(() => adding = false);
-              },
-              child: adding
-                  ? const SizedBox(width: 16, height: 16,
-                      child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
-                  : const Text('Add'),
-            ),
-          ],
-        ),
-      ),
+      builder: (_) => _AddClientDialog(api: _api, onAdded: _load),
     );
   }
 
@@ -356,6 +306,155 @@ class _CoachDashboardScreenState extends State<CoachDashboardScreen> {
         borderRadius: BorderRadius.circular(6),
       ),
       child: Text(text, style: TextStyle(fontSize: 11, color: color, fontWeight: FontWeight.w500)),
+    );
+  }
+}
+
+// ── Add Client Dialog ─────────────────────────────────────────────────────────
+
+class _AddClientDialog extends StatefulWidget {
+  final ApiService api;
+  final VoidCallback onAdded;
+  const _AddClientDialog({required this.api, required this.onAdded});
+
+  @override
+  State<_AddClientDialog> createState() => _AddClientDialogState();
+}
+
+class _AddClientDialogState extends State<_AddClientDialog> {
+  List<Map<String, dynamic>> _available = [];
+  List<Map<String, dynamic>> _filtered  = [];
+  Map<String, dynamic>? _selected;
+  bool _loading = true;
+  bool _adding  = false;
+  final _searchCtrl = TextEditingController();
+
+  @override
+  void initState() {
+    super.initState();
+    _load();
+    _searchCtrl.addListener(_filter);
+  }
+
+  @override
+  void dispose() {
+    _searchCtrl.dispose();
+    super.dispose();
+  }
+
+  Future<void> _load() async {
+    try {
+      final res = await widget.api.get('/coach/clients/available');
+      final list = List<Map<String, dynamic>>.from(res['clients'] ?? []);
+      setState(() { _available = list; _filtered = list; });
+    } catch (_) {}
+    setState(() => _loading = false);
+  }
+
+  void _filter() {
+    final q = _searchCtrl.text.toLowerCase();
+    setState(() {
+      _filtered = _available.where((c) =>
+        (c['full_name'] as String).toLowerCase().contains(q) ||
+        (c['username']  as String).toLowerCase().contains(q),
+      ).toList();
+    });
+  }
+
+  Future<void> _add() async {
+    if (_selected == null) return;
+    setState(() => _adding = true);
+    final messenger = ScaffoldMessenger.of(context);
+    final nav = Navigator.of(context);
+    try {
+      final res = await widget.api.post('/coach/clients/add',
+          {'participant_username': _selected!['username']});
+      nav.pop();
+      widget.onAdded();
+      messenger.showSnackBar(
+        SnackBar(content: Text(res['message'] ?? 'Client added'),
+            backgroundColor: Colors.green));
+    } catch (e) {
+      messenger.showSnackBar(SnackBar(content: Text(e.toString())));
+    }
+    if (mounted) setState(() => _adding = false);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AlertDialog(
+      title: const Text('Add Client'),
+      contentPadding: const EdgeInsets.fromLTRB(24, 16, 24, 0),
+      content: SizedBox(
+        width: double.maxFinite,
+        child: _loading
+            ? const SizedBox(height: 80, child: Center(child: CircularProgressIndicator()))
+            : Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  TextField(
+                    controller: _searchCtrl,
+                    decoration: const InputDecoration(
+                      hintText: 'Search by name or username…',
+                      prefixIcon: Icon(Icons.search),
+                      isDense: true,
+                    ),
+                    autofocus: true,
+                  ),
+                  const SizedBox(height: 8),
+                  if (_filtered.isEmpty)
+                    const Padding(
+                      padding: EdgeInsets.symmetric(vertical: 16),
+                      child: Text('No unassigned participants found',
+                          style: TextStyle(color: Colors.grey)),
+                    )
+                  else
+                    ConstrainedBox(
+                      constraints: const BoxConstraints(maxHeight: 260),
+                      child: ListView.builder(
+                        shrinkWrap: true,
+                        itemCount: _filtered.length,
+                        itemBuilder: (_, i) {
+                          final c = _filtered[i];
+                          final sel = _selected?['id'] == c['id'];
+                          return ListTile(
+                            dense: true,
+                            selected: sel,
+                            selectedTileColor:
+                                Theme.of(context).colorScheme.primaryContainer.withValues(alpha: 0.3),
+                            leading: CircleAvatar(
+                              radius: 16,
+                              backgroundColor: const Color(AppConstants.primaryColor).withValues(alpha: 0.12),
+                              child: Text(
+                                (c['full_name'] as String).split(' ').map((w) => w[0]).take(2).join().toUpperCase(),
+                                style: const TextStyle(fontSize: 11,
+                                    fontWeight: FontWeight.bold,
+                                    color: Color(AppConstants.primaryColor)),
+                              ),
+                            ),
+                            title: Text(c['full_name'],
+                                style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600)),
+                            subtitle: Text('@${c['username']}',
+                                style: const TextStyle(fontSize: 11)),
+                            trailing: sel ? const Icon(Icons.check_circle, color: Colors.green, size: 18) : null,
+                            onTap: () => setState(() => _selected = sel ? null : c),
+                          );
+                        },
+                      ),
+                    ),
+                ],
+              ),
+      ),
+      actions: [
+        TextButton(onPressed: () => Navigator.pop(context), child: const Text('Cancel')),
+        ElevatedButton(
+          onPressed: (_selected == null || _adding) ? null : _add,
+          child: _adding
+              ? const SizedBox(width: 16, height: 16,
+                  child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
+              : const Text('Add'),
+        ),
+      ],
     );
   }
 }

@@ -43,10 +43,13 @@ jobs:
           username: ubuntu
           key: ${{ secrets.EC2_SSH_KEY }}
           script: |
+            set -e
+            export PATH="/usr/local/bin:/usr/bin:$PATH"
             cd /home/ubuntu/coachtrack
             git pull origin master
             cd backend
             npm install --omit=dev
-            pm2 restart coachtrack
+            pm2 reload coachtrack --update-env || pm2 restart coachtrack
+            pm2 save
             chmod -R 755 /var/www/coachtrack/
-            sudo systemctl reload nginx
+            sudo -n systemctl reload nginx

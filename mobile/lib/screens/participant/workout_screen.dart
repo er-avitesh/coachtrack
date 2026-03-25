@@ -248,12 +248,11 @@ class _WorkoutScreenState extends State<WorkoutScreen> {
     return Scaffold(
       appBar: AppBar(
         title: const Text('My Workout'),
-        leading: BackButton(onPressed: () => context.go('/dashboard')),
         actions: [
           IconButton(
             icon: const Icon(Icons.history),
             tooltip: 'History',
-            onPressed: () => context.go('/workout/history'),
+            onPressed: () => context.push('/workout/history'),
           ),
         ],
       ),

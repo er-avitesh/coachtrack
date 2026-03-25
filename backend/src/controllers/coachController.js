@@ -151,4 +151,78 @@ const updateProgramDates = async (req, res) => {
   }
 };
 
-module.exports = { getClients, addClient, getClientSummary, updateProgramDates };
+// GET /api/coach/client/:id/goal-tracking — last 14 days of goal completion for a client
+const getClientGoalTracking = async (req, res) => {
+  try {
+    const coachId  = req.user.id;
+    const clientId = parseInt(req.params.id);
+
+    // Verify access
+    const access = await db.query(
+      'SELECT id FROM coach_clients WHERE coach_id = $1 AND participant_id = $2',
+      [coachId, clientId]
+    );
+    if (access.rows.length === 0) {
+      return res.status(403).json({ success: false, message: 'Access denied' });
+    }
+
+    // Daily tracking for last 14 days
+    const tracking = await db.query(
+      `SELECT date, steps, water_intake_liters, sleep_hours, stress_level, mood
+       FROM daily_tracking
+       WHERE user_id = $1
+         AND date >= CURRENT_DATE - INTERVAL '13 days'
+       ORDER BY date DESC`,
+      [clientId]
+    );
+
+    // Active lifestyle plan goals
+    const lifestyle = await db.query(
+      `SELECT lp.id, lp.plan_name,
+              json_agg(li ORDER BY li.id) AS items
+       FROM lifestyle_plans lp
+       LEFT JOIN lifestyle_items li ON li.lifestyle_plan_id = lp.id
+       WHERE lp.participant_id = $1 AND lp.is_active = true
+       GROUP BY lp.id
+       ORDER BY lp.created_at DESC LIMIT 1`,
+      [clientId]
+    );
+
+    // Client name
+    const user = await db.query(
+      'SELECT full_name FROM users WHERE id = $1',
+      [clientId]
+    );
+
+    res.json({
+      success: true,
+      client_name: user.rows[0]?.full_name ?? '',
+      tracking: tracking.rows,
+      lifestyle_plan: lifestyle.rows[0] ?? null,
+    });
+  } catch (err) {
+    console.error('Goal tracking error:', err);
+    res.status(500).json({ success: false, message: 'Server error' });
+  }
+};
+
+// GET /api/coach/clients/available — participants not yet assigned to any coach
+const getAvailableClients = async (req, res) => {
+  try {
+    const result = await db.query(
+      `SELECT u.id, u.username, u.full_name
+       FROM users u
+       WHERE u.role = 'participant'
+         AND NOT EXISTS (
+           SELECT 1 FROM coach_clients cc WHERE cc.participant_id = u.id
+         )
+       ORDER BY u.full_name`
+    );
+    res.json({ success: true, clients: result.rows });
+  } catch (err) {
+    console.error('Get available clients error:', err);
+    res.status(500).json({ success: false, message: 'Server error' });
+  }
+};
+
+module.exports = { getClients, addClient, getClientSummary, updateProgramDates, getAvailableClients, getClientGoalTracking };
