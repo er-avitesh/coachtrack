@@ -242,60 +242,53 @@ class _DashboardScreenState extends State<DashboardScreen> {
 
   Widget _profileActionItemsCard(BuildContext context) {
     final items = _profileActionItems();
+    final count = items.length;
     return Card(
       color: Theme.of(context).colorScheme.secondaryContainer.withValues(alpha: 0.4),
-      child: Padding(
-        padding: const EdgeInsets.symmetric(vertical: 8),
-        child: Column(
-          children: [
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
-              child: Row(
-                children: [
-                  Icon(Icons.info_outline, color: Colors.amber.shade700, size: 18),
-                  const SizedBox(width: 8),
-                  Expanded(
-                    child: Text(
-                      'Help your coach personalise your plan',
-                      style: TextStyle(
-                        fontSize: 12,
-                        color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.7),
-                      ),
-                    ),
-                  ),
-                ],
-              ),
+      child: Theme(
+        data: Theme.of(context).copyWith(dividerColor: Colors.transparent),
+        child: ExpansionTile(
+          leading: Icon(Icons.info_outline, color: Colors.amber.shade700, size: 20),
+          title: Text(
+            '$count item${count == 1 ? '' : 's'} incomplete',
+            style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600),
+          ),
+          subtitle: Text(
+            'Tap to help your coach personalise your plan',
+            style: TextStyle(
+              fontSize: 11,
+              color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.6),
             ),
-            const Divider(height: 1),
-            ...items.asMap().entries.map((e) {
-              final isLast = e.key == items.length - 1;
-              final item = e.value;
-              return Column(
-                children: [
-                  InkWell(
-                    onTap: () => context.go('/profile'),
-                    child: Padding(
-                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-                      child: Row(
-                        children: [
-                          Icon(item.icon, size: 18,
-                              color: Theme.of(context).colorScheme.primary),
-                          const SizedBox(width: 12),
-                          Expanded(
-                            child: Text(item.label,
-                                style: const TextStyle(fontSize: 13)),
-                          ),
-                          Icon(Icons.chevron_right, size: 16,
-                              color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.4)),
-                        ],
-                      ),
+          ),
+          children: items.asMap().entries.map((e) {
+            final isLast = e.key == items.length - 1;
+            final item   = e.value;
+            return Column(
+              children: [
+                const Divider(height: 1),
+                InkWell(
+                  onTap: () => context.go('/profile'),
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+                    child: Row(
+                      children: [
+                        Icon(item.icon, size: 18,
+                            color: Theme.of(context).colorScheme.primary),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: Text(item.label,
+                              style: const TextStyle(fontSize: 13)),
+                        ),
+                        Icon(Icons.chevron_right, size: 16,
+                            color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.4)),
+                      ],
                     ),
                   ),
-                  if (!isLast) const Divider(height: 1, indent: 46),
-                ],
-              );
-            }),
-          ],
+                ),
+                if (!isLast) const Divider(height: 1, indent: 46),
+              ],
+            );
+          }).toList(),
         ),
       ),
     );
@@ -868,13 +861,13 @@ class _DashboardScreenState extends State<DashboardScreen> {
     return NavigationBar(
       selectedIndex: 0,
       onDestinationSelected: (i) {
-        const routes = ['/dashboard', '/tracking', '/meals', '/workout'];
+        const routes = ['/dashboard', '/tracking', '/food-log', '/workout'];
         context.go(routes[i]);
       },
       destinations: const [
         NavigationDestination(icon: Icon(Icons.home_outlined), selectedIcon: Icon(Icons.home), label: 'Home'),
         NavigationDestination(icon: Icon(Icons.edit_note), label: 'Track'),
-        NavigationDestination(icon: Icon(Icons.restaurant_menu), label: 'Meals'),
+        NavigationDestination(icon: Icon(Icons.menu_book_outlined), selectedIcon: Icon(Icons.menu_book), label: 'Food Log'),
         NavigationDestination(icon: Icon(Icons.fitness_center), label: 'Workout'),
       ],
     );

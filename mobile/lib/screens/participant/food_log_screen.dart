@@ -7,6 +7,14 @@ import '../../models/models.dart';
 import '../../data/indian_meals_db.dart';
 import '../../core/constants.dart';
 
+const _mealSlots = [
+  ('breakfast', 'Breakfast'),
+  ('lunch',     'Lunch'),
+  ('snack',     'Snack'),
+  ('dinner',    'Dinner'),
+  ('other',     'Other'),
+];
+
 class FoodLogScreen extends StatefulWidget {
   const FoodLogScreen({super.key});
   @override
@@ -21,6 +29,7 @@ class _FoodLogScreenState extends State<FoodLogScreen> {
   List<FoodItem>      _localResults = [];
   List<FoodItem>      _apiResults   = [];
   List<MealLogEntry>  _todayLog     = [];
+  DietPlan?           _dietPlan;
 
   bool _searchingApi  = false;
   bool _loadingLog    = false;
@@ -32,6 +41,7 @@ class _FoodLogScreenState extends State<FoodLogScreen> {
   void initState() {
     super.initState();
     _loadTodayLog();
+    _loadDietPlan();
     _searchCtrl.addListener(_onSearchChanged);
   }
 
@@ -41,6 +51,18 @@ class _FoodLogScreenState extends State<FoodLogScreen> {
     _searchCtrl.dispose();
     _searchFocus.dispose();
     super.dispose();
+  }
+
+  // ── Diet plan ─────────────────────────────────────────────────────────────
+
+  Future<void> _loadDietPlan() async {
+    try {
+      final res = await _api.get('/diet/get');
+      if (!mounted) return;
+      if (res['diet_plan'] != null) {
+        setState(() => _dietPlan = DietPlan.fromJson(res['diet_plan']));
+      }
+    } catch (_) {}
   }
 
   // ── Search logic ─────────────────────────────────────────────────────────
@@ -118,7 +140,7 @@ class _FoodLogScreenState extends State<FoodLogScreen> {
 
   // ── Add to log ────────────────────────────────────────────────────────────
 
-  Future<void> _addToLog(FoodItem food, ServingSize serving) async {
+  Future<void> _addToLog(FoodItem food, ServingSize serving, String mealSlot) async {
     final n = food.nutrientsFor(serving.grams);
     try {
       final res = await _api.post('/food/log', {
@@ -132,6 +154,7 @@ class _FoodLogScreenState extends State<FoodLogScreen> {
         'carbs_g':       double.parse(n['carbs_g']!.toStringAsFixed(1)),
         'fat_g':         double.parse(n['fat_g']!.toStringAsFixed(1)),
         'fiber_g':       double.parse(n['fiber_g']!.toStringAsFixed(1)),
+        'meal_slot':     mealSlot,
       });
       if (res['success'] == true) {
         await _loadTodayLog();
@@ -147,10 +170,10 @@ class _FoodLogScreenState extends State<FoodLogScreen> {
           );
         }
       }
-    } catch (_) {
+    } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Failed to add meal. Please try again.')),
+          SnackBar(content: Text('Failed to add meal: $e')),
         );
       }
     }
@@ -281,19 +304,23 @@ class _FoodLogScreenState extends State<FoodLogScreen> {
     );
   }
 
-  // ── Food detail bottom sheet ──────────────────────────────────────────────
+  // ── Food detail dialog ────────────────────────────────────────────────────
 
   void _showFoodDetail(FoodItem food) {
-    showModalBottomSheet(
+    showDialog(
       context: context,
-      isScrollControlled: true,
-      backgroundColor: Colors.transparent,
-      builder: (ctx) => _FoodDetailSheet(
-        food: food,
-        onAdd: (serving) {
-          Navigator.pop(ctx);
-          _addToLog(food, serving);
-        },
+      builder: (ctx) => Dialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        insetPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 40),
+        child: _FoodDetailDialog(
+          food:     food,
+          dietPlan: _dietPlan,
+          todayLog: _todayLog,
+          onAdd:    (serving, mealSlot) {
+            Navigator.pop(ctx);
+            _addToLog(food, serving, mealSlot);
+          },
+        ),
       ),
     );
   }
@@ -701,20 +728,29 @@ class _FoodLogScreenState extends State<FoodLogScreen> {
   }
 }
 
-// ── Food detail bottom sheet ──────────────────────────────────────────────────
+// ── Food detail dialog ────────────────────────────────────────────────────────
 
-class _FoodDetailSheet extends StatefulWidget {
+class _FoodDetailDialog extends StatefulWidget {
   final FoodItem food;
-  final void Function(ServingSize) onAdd;
-  const _FoodDetailSheet({required this.food, required this.onAdd});
+  final DietPlan? dietPlan;
+  final List<MealLogEntry> todayLog;
+  final void Function(ServingSize serving, String mealSlot) onAdd;
+
+  const _FoodDetailDialog({
+    required this.food,
+    required this.dietPlan,
+    required this.todayLog,
+    required this.onAdd,
+  });
 
   @override
-  State<_FoodDetailSheet> createState() => _FoodDetailSheetState();
+  State<_FoodDetailDialog> createState() => _FoodDetailDialogState();
 }
 
-class _FoodDetailSheetState extends State<_FoodDetailSheet> {
-  int _servingIdx = 0;
-  bool _adding    = false;
+class _FoodDetailDialogState extends State<_FoodDetailDialog> {
+  int    _servingIdx  = 0;
+  String _mealSlot    = 'breakfast';
+  bool   _adding      = false;
 
   ServingSize get _serving =>
       widget.food.servings.isNotEmpty
@@ -723,40 +759,38 @@ class _FoodDetailSheetState extends State<_FoodDetailSheet> {
 
   Map<String, double> get _nutrients => widget.food.nutrientsFor(_serving.grams);
 
+  // Calories already logged for the selected meal slot
+  double get _slotLogged => widget.todayLog
+      .where((e) => e.mealSlot == _mealSlot)
+      .fold(0.0, (s, e) => s + e.calories);
+
+  // Diet plan target for the selected slot (null if no plan / no matching slot)
+  DietPlanMeal? get _slotTarget {
+    if (widget.dietPlan == null) return null;
+    try {
+      return widget.dietPlan!.meals.firstWhere((m) => m.mealSlot == _mealSlot);
+    } catch (_) {
+      return null;
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
-    final food = widget.food;
-    final n    = _nutrients;
-    final cal  = n['calories']!;
+    final food    = widget.food;
+    final n       = _nutrients;
+    final cal     = n['calories']!;
     const primary = Color(AppConstants.primaryColor);
+    final target  = _slotTarget;
 
-    return Container(
-      decoration: BoxDecoration(
-        color: Theme.of(context).colorScheme.surface,
-        borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
-      ),
-      padding: EdgeInsets.fromLTRB(
-        20, 12, 20,
-        MediaQuery.of(context).viewInsets.bottom + 24,
-      ),
+    return ClipRRect(
+      borderRadius: BorderRadius.circular(20),
       child: SingleChildScrollView(
+        padding: const EdgeInsets.fromLTRB(20, 20, 20, 24),
         child: Column(
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // Handle
-            Center(
-              child: Container(
-                width: 40, height: 4,
-                decoration: BoxDecoration(
-                  color: Colors.grey.shade300,
-                  borderRadius: BorderRadius.circular(2),
-                ),
-              ),
-            ),
-            const SizedBox(height: 16),
-
-            // Food name
+            // Header row: food name + close
             Row(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
@@ -774,102 +808,117 @@ class _FoodDetailSheetState extends State<_FoodDetailSheet> {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(food.name,
-                        style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+                        style: const TextStyle(fontSize: 17, fontWeight: FontWeight.bold)),
                       if (food.nameHi.isNotEmpty)
                         Text(food.nameHi,
-                          style: TextStyle(fontSize: 14,
+                          style: TextStyle(fontSize: 13,
                             color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.6))),
-                      const SizedBox(height: 4),
                       Text('${food.caloriesPer100g.toStringAsFixed(0)} kcal per 100g',
-                        style: TextStyle(fontSize: 12,
+                        style: TextStyle(fontSize: 11,
                           color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.45))),
                     ],
                   ),
                 ),
+                IconButton(
+                  icon: const Icon(Icons.close, size: 20),
+                  padding: EdgeInsets.zero,
+                  constraints: const BoxConstraints(),
+                  onPressed: () => Navigator.pop(context),
+                ),
               ],
             ),
-            const SizedBox(height: 20),
+            const SizedBox(height: 16),
+
+            // Meal slot selector
+            const Text('Meal', style: TextStyle(fontWeight: FontWeight.w600, fontSize: 13)),
+            const SizedBox(height: 6),
+            _dropdownBox(
+              child: DropdownButton<String>(
+                value: _mealSlot,
+                isExpanded: true,
+                underline: const SizedBox.shrink(),
+                items: _mealSlots.map((s) => DropdownMenuItem(
+                  value: s.$1,
+                  child: Text(s.$2, style: const TextStyle(fontSize: 14)),
+                )).toList(),
+                onChanged: (v) => setState(() => _mealSlot = v!),
+              ),
+            ),
+            const SizedBox(height: 12),
 
             // Serving size selector
-            const Text('Serving Size',
-              style: TextStyle(fontWeight: FontWeight.w600, fontSize: 14)),
-            const SizedBox(height: 8),
-            Container(
-              width: double.infinity,
-              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 4),
-              decoration: BoxDecoration(
-                border: Border.all(color: Theme.of(context).colorScheme.outline.withValues(alpha: 0.4)),
-                borderRadius: BorderRadius.circular(12),
-              ),
+            const Text('Serving Size', style: TextStyle(fontWeight: FontWeight.w600, fontSize: 13)),
+            const SizedBox(height: 6),
+            _dropdownBox(
               child: DropdownButton<int>(
                 value: _servingIdx,
                 isExpanded: true,
                 underline: const SizedBox.shrink(),
-                items: food.servings.asMap().entries.map((e) =>
-                  DropdownMenuItem(
-                    value: e.key,
-                    child: Text(e.value.label, style: const TextStyle(fontSize: 14)),
-                  )
-                ).toList(),
+                items: food.servings.asMap().entries.map((e) => DropdownMenuItem(
+                  value: e.key,
+                  child: Text(e.value.label, style: const TextStyle(fontSize: 14)),
+                )).toList(),
                 onChanged: (i) => setState(() => _servingIdx = i!),
               ),
             ),
-            const SizedBox(height: 20),
+            const SizedBox(height: 16),
 
             // Calorie banner
             Container(
               width: double.infinity,
-              padding: const EdgeInsets.symmetric(vertical: 16),
+              padding: const EdgeInsets.symmetric(vertical: 14),
               decoration: BoxDecoration(
                 gradient: LinearGradient(
                   colors: [primary.withValues(alpha: 0.85), primary],
                 ),
-                borderRadius: BorderRadius.circular(16),
+                borderRadius: BorderRadius.circular(14),
               ),
               child: Column(
                 children: [
                   Text(cal.toStringAsFixed(0),
                     style: const TextStyle(
-                      color: Colors.white,
-                      fontSize: 40,
-                      fontWeight: FontWeight.bold,
-                      height: 1.0,
-                    )),
-                  const Text('calories',
-                    style: TextStyle(color: Colors.white70, fontSize: 13)),
+                      color: Colors.white, fontSize: 36,
+                      fontWeight: FontWeight.bold, height: 1.0)),
+                  const Text('calories', style: TextStyle(color: Colors.white70, fontSize: 12)),
                 ],
               ),
             ),
-            const SizedBox(height: 16),
+            const SizedBox(height: 12),
 
             // Macro row
             Row(
               children: [
-                _macroCard('Protein',  n['protein_g']!, 'g', Colors.blue),
-                const SizedBox(width: 8),
-                _macroCard('Carbs',    n['carbs_g']!,   'g', Colors.orange),
-                const SizedBox(width: 8),
-                _macroCard('Fat',      n['fat_g']!,     'g', Colors.red),
-                const SizedBox(width: 8),
-                _macroCard('Fiber',    n['fiber_g']!,   'g', Colors.green),
+                _macroCard('Protein', n['protein_g']!, 'g', Colors.blue),
+                const SizedBox(width: 6),
+                _macroCard('Carbs',   n['carbs_g']!,   'g', Colors.orange),
+                const SizedBox(width: 6),
+                _macroCard('Fat',     n['fat_g']!,     'g', Colors.red),
+                const SizedBox(width: 6),
+                _macroCard('Fiber',   n['fiber_g']!,   'g', Colors.green),
               ],
             ),
-            const SizedBox(height: 24),
+
+            // Meal slot nutrient comparison
+            if (target != null) ...[
+              const SizedBox(height: 14),
+              _slotComparison(target, cal),
+            ],
+            const SizedBox(height: 20),
 
             // Add button
             SizedBox(
               width: double.infinity,
-              height: 50,
+              height: 48,
               child: ElevatedButton.icon(
                 onPressed: _adding ? null : () {
                   setState(() => _adding = true);
-                  widget.onAdd(_serving);
+                  widget.onAdd(_serving, _mealSlot);
                 },
                 icon: _adding
-                    ? const SizedBox(width: 18, height: 18,
+                    ? const SizedBox(width: 16, height: 16,
                         child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
                     : const Icon(Icons.add_circle_outline),
-                label: Text(_adding ? 'Adding…' : 'Add to Today\'s Log',
+                label: Text(_adding ? 'Adding…' : 'Add to Log',
                   style: const TextStyle(fontSize: 15, fontWeight: FontWeight.bold)),
               ),
             ),
@@ -879,22 +928,112 @@ class _FoodDetailSheetState extends State<_FoodDetailSheet> {
     );
   }
 
+  Widget _dropdownBox({required Widget child}) {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 2),
+      decoration: BoxDecoration(
+        border: Border.all(
+          color: Theme.of(context).colorScheme.outline.withValues(alpha: 0.4)),
+        borderRadius: BorderRadius.circular(12),
+      ),
+      child: child,
+    );
+  }
+
+  Widget _slotComparison(DietPlanMeal target, double thisCal) {
+    final logged  = _slotLogged;
+    final total   = logged + thisCal;
+    final remain  = target.calories - total;
+    final isOver  = remain < -50;
+    final isOnTgt = remain.abs() <= 50;
+    final statusColor = isOver ? Colors.red
+        : isOnTgt ? Colors.green
+        : Colors.orange;
+    final statusLabel = isOver ? 'Over target'
+        : isOnTgt ? 'On target'
+        : 'Under target';
+    final slotLabel = _mealSlot[0].toUpperCase() + _mealSlot.substring(1);
+
+    return Container(
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: statusColor.withValues(alpha: 0.06),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: statusColor.withValues(alpha: 0.2)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Icon(Icons.pie_chart_outline, size: 14, color: statusColor),
+              const SizedBox(width: 6),
+              Text('$slotLabel target',
+                style: TextStyle(
+                  fontWeight: FontWeight.w600, fontSize: 12, color: statusColor)),
+              const Spacer(),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                decoration: BoxDecoration(
+                  color: statusColor.withValues(alpha: 0.12),
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: Text(statusLabel,
+                  style: TextStyle(
+                    fontSize: 10, fontWeight: FontWeight.bold, color: statusColor)),
+              ),
+            ],
+          ),
+          const SizedBox(height: 8),
+          _compRow('Target',        '${target.calories.toStringAsFixed(0)} kcal'),
+          _compRow('Already logged','${logged.toStringAsFixed(0)} kcal'),
+          _compRow('This item',     '+ ${thisCal.toStringAsFixed(0)} kcal'),
+          const Divider(height: 12),
+          _compRow(
+            remain >= 0 ? 'Remaining after' : 'Over by',
+            '${remain.abs().toStringAsFixed(0)} kcal',
+            bold: true,
+            color: statusColor,
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _compRow(String label, String value, {bool bold = false, Color? color}) {
+    final style = TextStyle(
+      fontSize: 12,
+      fontWeight: bold ? FontWeight.bold : FontWeight.normal,
+      color: color ?? Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.75),
+    );
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 1),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        children: [
+          Text(label, style: style),
+          Text(value,  style: style),
+        ],
+      ),
+    );
+  }
+
   Widget _macroCard(String label, double value, String unit, Color color) {
     return Expanded(
       child: Container(
-        padding: const EdgeInsets.symmetric(vertical: 10),
+        padding: const EdgeInsets.symmetric(vertical: 8),
         decoration: BoxDecoration(
           color: color.withValues(alpha: 0.08),
-          borderRadius: BorderRadius.circular(12),
+          borderRadius: BorderRadius.circular(10),
           border: Border.all(color: color.withValues(alpha: 0.2)),
         ),
         child: Column(
           children: [
             Text('${value.toStringAsFixed(1)}$unit',
-              style: TextStyle(
-                fontWeight: FontWeight.bold, color: color, fontSize: 14)),
+              style: TextStyle(fontWeight: FontWeight.bold, color: color, fontSize: 13)),
             Text(label,
-              style: TextStyle(fontSize: 10,
+              style: TextStyle(fontSize: 9,
                 color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.55))),
           ],
         ),

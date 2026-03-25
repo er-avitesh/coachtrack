@@ -139,7 +139,7 @@ const logMeal = async (req, res) => {
       food_id, food_name, food_name_hi,
       serving_label, serving_grams,
       calories, protein_g, carbs_g, fat_g, fiber_g,
-      date,
+      meal_slot, date,
     } = req.body;
 
     if (!food_name || !calories) {
@@ -150,11 +150,11 @@ const logMeal = async (req, res) => {
 
     const result = await db.query(
       `INSERT INTO meal_logs
-         (user_id, date, food_id, food_name, food_name_hi, serving_label, serving_grams, calories, protein_g, carbs_g, fat_g, fiber_g)
-       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12)
+         (user_id, date, food_id, food_name, food_name_hi, meal_slot, serving_label, serving_grams, calories, protein_g, carbs_g, fat_g, fiber_g)
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13)
        RETURNING *`,
       [userId, logDate, food_id, food_name, food_name_hi,
-       serving_label, serving_grams, calories, protein_g || 0,
+       meal_slot || 'other', serving_label, serving_grams, calories, protein_g || 0,
        carbs_g || 0, fat_g || 0, fiber_g || 0]
     );
 

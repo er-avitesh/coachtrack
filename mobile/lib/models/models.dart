@@ -299,6 +299,7 @@ class MealLogEntry {
   final double carbsG;
   final double fatG;
   final double fiberG;
+  final String mealSlot;
   final DateTime loggedAt;
 
   MealLogEntry({
@@ -312,6 +313,7 @@ class MealLogEntry {
     required this.carbsG,
     required this.fatG,
     required this.fiberG,
+    required this.mealSlot,
     required this.loggedAt,
   });
 
@@ -326,6 +328,7 @@ class MealLogEntry {
     carbsG:   double.tryParse(j['carbs_g'].toString()) ?? 0,
     fatG:     double.tryParse(j['fat_g'].toString()) ?? 0,
     fiberG:   double.tryParse(j['fiber_g'].toString()) ?? 0,
+    mealSlot: j['meal_slot'] ?? 'other',
     loggedAt: DateTime.parse(j['created_at']),
   );
 }

@@ -18,13 +18,13 @@ const addTracking = async (req, res) => {
         steps, sleep_hours, mood, deviation_notes
       ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9)
       ON CONFLICT (user_id, date) DO UPDATE SET
-        weight_kg = EXCLUDED.weight_kg,
-        stress_level = EXCLUDED.stress_level,
-        water_intake_liters = EXCLUDED.water_intake_liters,
-        steps = EXCLUDED.steps,
-        sleep_hours = EXCLUDED.sleep_hours,
-        mood = EXCLUDED.mood,
-        deviation_notes = EXCLUDED.deviation_notes
+        weight_kg           = COALESCE(EXCLUDED.weight_kg,           daily_tracking.weight_kg),
+        stress_level        = COALESCE(EXCLUDED.stress_level,        daily_tracking.stress_level),
+        water_intake_liters = COALESCE(EXCLUDED.water_intake_liters, daily_tracking.water_intake_liters),
+        steps               = COALESCE(EXCLUDED.steps,               daily_tracking.steps),
+        sleep_hours         = COALESCE(EXCLUDED.sleep_hours,         daily_tracking.sleep_hours),
+        mood                = COALESCE(EXCLUDED.mood,                daily_tracking.mood),
+        deviation_notes     = COALESCE(EXCLUDED.deviation_notes,     daily_tracking.deviation_notes)
       RETURNING *`,
       [
         userId, trackDate, weight_kg, stress_level, water_intake_liters,
