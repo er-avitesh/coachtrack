@@ -30,9 +30,10 @@ class _DashboardScreenState extends State<DashboardScreen> {
   int?                 _nextDayIndex;   // suggested next workout day
   bool                 _workoutDoneToday = false;
   bool                 _loading         = true;
+  Map<String, bool>    _manualDone      = {};
 
   @override
-  void initState() { super.initState(); _load(); }
+  void initState() { super.initState(); _load(); _loadManualDone(); }
 
   Future<void> _load() async {
     try {
@@ -107,7 +108,80 @@ class _DashboardScreenState extends State<DashboardScreen> {
     return (latestIdx + 1) % plan.days.length;
   }
 
-  // ── Profile completeness ──────────────────────────────────────────────────
+  // ── Manual goal helpers ──────────────────────────────────────────────────
+
+  Future<void> _loadManualDone() async {
+    final today = DateTime.now();
+    final d = '${today.year}-${today.month.toString().padLeft(2, '0')}-${today.day.toString().padLeft(2, '0')}';
+    final prefs = await SharedPreferences.getInstance();
+    const cats = ['screen_time', 'meditation', 'sunlight', 'no_sugar', 'no_alcohol', 'meal_timing', 'custom'];
+    final map = <String, bool>{};
+    for (final c in cats) {
+      map[c] = prefs.getBool('manual_done_${c}_$d') ?? false;
+    }
+    if (mounted) setState(() => _manualDone = map);
+  }
+
+  Future<void> _toggleManualDone(String category) async {
+    final today = DateTime.now();
+    final d = '${today.year}-${today.month.toString().padLeft(2, '0')}-${today.day.toString().padLeft(2, '0')}';
+    final prefs = await SharedPreferences.getInstance();
+    final next = !(_manualDone[category] ?? false);
+    setState(() => _manualDone[category] = next);
+    await prefs.setBool('manual_done_${category}_$d', next);
+  }
+
+  Future<void> _showValueDialog(LifestyleItem item) async {
+    final ctrl = TextEditingController();
+    final unit = item.unit ?? '';
+    final hint = item.category == 'steps' ? 'e.g. 8000'
+        : item.category == 'water' ? 'e.g. 2.5'
+        : item.category == 'sleep' ? 'e.g. 7.5'
+        : 'value';
+
+    final result = await showDialog<String>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: Text(item.title),
+        content: TextField(
+          controller: ctrl,
+          keyboardType: const TextInputType.numberWithOptions(decimal: true),
+          decoration: InputDecoration(
+            labelText: 'Enter value',
+            suffixText: unit,
+            hintText: hint,
+          ),
+          autofocus: true,
+          onSubmitted: (_) => Navigator.pop(ctx, ctrl.text.trim()),
+        ),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Cancel')),
+          ElevatedButton(
+            onPressed: () => Navigator.pop(ctx, ctrl.text.trim()),
+            child: const Text('Save'),
+          ),
+        ],
+      ),
+    );
+
+    if (result == null || result.isEmpty) return;
+    final val = double.tryParse(result);
+    if (val == null) return;
+
+    final body = <String, dynamic>{};
+    if (item.category == 'steps')      body['steps'] = val.toInt();
+    else if (item.category == 'water') body['water_intake_liters'] = val;
+    else if (item.category == 'sleep') body['sleep_hours'] = val;
+
+    try {
+      final res = await _api.post('/tracking/add', body);
+      if (res['success'] == true && res['tracking'] != null) {
+        setState(() => _today = DailyTracking.fromJson(res['tracking']));
+      }
+    } catch (_) {}
+  }
+
+    // ── Profile completeness ──────────────────────────────────────────────────
 
   /// Returns a list of (label, icon) for every missing onboarding field group.
   List<({String label, IconData icon})> _profileActionItems() {
@@ -547,10 +621,10 @@ class _DashboardScreenState extends State<DashboardScreen> {
       String title,
       String target,
       bool done,
-      String route,
+      VoidCallback? onTap,
     })>[];
 
-    // Workout
+    // Workout — always navigate to workout screen
     if (_workoutPlan != null && _nextDayIndex != null) {
       final day = _workoutPlan!.days[_nextDayIndex!];
       items.add((
@@ -559,7 +633,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
         title: day.dayName,
         target: '${day.exercises.length} exercises',
         done: _workoutDoneToday,
-        route: '/workout',
+        onTap: () => context.go('/workout'),
       ));
     }
 
@@ -570,7 +644,9 @@ class _DashboardScreenState extends State<DashboardScreen> {
             ? '${item.targetValue}${item.unit != null ? ' ${item.unit}' : ''}'
             : '';
 
-        // Auto-check based on today's logged data vs target
+        final isValueGoal = ['steps', 'water', 'sleep'].contains(item.category);
+
+        // Auto-check value goals against today's logged data
         bool done = false;
         final target = double.tryParse(item.targetValue ?? '');
         if (item.category == 'steps' && target != null) {
@@ -579,21 +655,27 @@ class _DashboardScreenState extends State<DashboardScreen> {
           done = (_today?.waterIntakeLiters ?? 0) >= target;
         } else if (item.category == 'sleep' && target != null) {
           done = (_today?.sleepHours ?? 0) >= target;
-        } else if (_today != null) {
-          // For non-numeric goals, mark done if user has logged today at all
-          done = item.category == 'meditation' || item.category == 'sunlight'
-              ? false // can't auto-check these
-              : false;
+        } else {
+          // Yes/no goals: check manual toggle (tap again to undo)
+          done = _manualDone[item.category] ?? false;
         }
 
         IconData icon = Icons.check_circle_outline;
         Color color = Colors.teal;
-        if (item.category == 'steps')       { icon = Icons.directions_walk;      color = Colors.green; }
-        else if (item.category == 'water')  { icon = Icons.water_drop_outlined;  color = Colors.blue; }
-        else if (item.category == 'sleep')  { icon = Icons.bedtime_outlined;     color = Colors.indigo; }
-        else if (item.category == 'meditation') { icon = Icons.self_improvement; color = Colors.purple; }
+        if (item.category == 'steps')            { icon = Icons.directions_walk;        color = Colors.green; }
+        else if (item.category == 'water')       { icon = Icons.water_drop_outlined;    color = Colors.blue; }
+        else if (item.category == 'sleep')       { icon = Icons.bedtime_outlined;       color = Colors.indigo; }
+        else if (item.category == 'meditation')  { icon = Icons.self_improvement;       color = Colors.purple; }
         else if (item.category == 'screen_time') { icon = Icons.phone_android_outlined; color = Colors.orange; }
-        else if (item.category == 'sunlight') { icon = Icons.wb_sunny_outlined;  color = Colors.amber; }
+        else if (item.category == 'sunlight')    { icon = Icons.wb_sunny_outlined;      color = Colors.amber; }
+        else if (item.category == 'no_sugar')    { icon = Icons.no_food;                color = Colors.red; }
+        else if (item.category == 'no_alcohol')  { icon = Icons.local_bar_outlined;     color = Colors.deepPurple; }
+
+        // Value goals: show input dialog (re-enterable even if done)
+        // Yes/no goals: tap to toggle done/undone
+        final VoidCallback onTap = isValueGoal
+            ? () => _showValueDialog(item)
+            : () => _toggleManualDone(item.category);
 
         items.add((
           icon: icon,
@@ -601,7 +683,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
           title: item.title,
           target: targetStr,
           done: done,
-          route: '/tracking',
+          onTap: onTap,
         ));
       }
     }
@@ -613,13 +695,12 @@ class _DashboardScreenState extends State<DashboardScreen> {
         return Card(
           margin: const EdgeInsets.only(bottom: 8),
           child: InkWell(
-            onTap: () => context.go(item.route),
+            onTap: item.onTap,
             borderRadius: BorderRadius.circular(16),
             child: Padding(
               padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 11),
               child: Row(
                 children: [
-                  // Checkbox circle
                   Container(
                     width: 32, height: 32,
                     decoration: BoxDecoration(

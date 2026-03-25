@@ -124,7 +124,7 @@ class _ProgressScreenState extends State<ProgressScreen> {
                     _summaryRow(),
                     const SizedBox(height: 20),
 
-                    if (_weightSpots().length > 1) ...[
+                    if (_weightSpots().isNotEmpty) ...[
                       _lineChart(
                         title: 'Weight', subtitle: 'kg over time',
                         icon: Icons.monitor_weight_outlined, color: Colors.purple,
@@ -159,7 +159,7 @@ class _ProgressScreenState extends State<ProgressScreen> {
                       const SizedBox(height: 14),
                     ],
 
-                    if (_sleepSpots().length > 1) ...[
+                    if (_sleepSpots().isNotEmpty) ...[
                       _lineChart(
                         title: 'Sleep', subtitle: 'hours per night',
                         icon: Icons.bedtime_outlined, color: Colors.indigo,
@@ -169,7 +169,7 @@ class _ProgressScreenState extends State<ProgressScreen> {
                       const SizedBox(height: 14),
                     ],
 
-                    if (_waterSpots().length > 1) ...[
+                    if (_waterSpots().isNotEmpty) ...[
                       _lineChart(
                         title: 'Water Intake', subtitle: 'liters per day',
                         icon: Icons.water_drop_outlined, color: Colors.blue,
@@ -179,7 +179,7 @@ class _ProgressScreenState extends State<ProgressScreen> {
                       const SizedBox(height: 14),
                     ],
 
-                    if (_stressSpots().length > 1) ...[
+                    if (_stressSpots().isNotEmpty) ...[
                       _lineChart(
                         title: 'Stress Level', subtitle: '1 = relaxed  ·  10 = stressed',
                         icon: Icons.psychology_outlined, color: Colors.orange,
@@ -188,7 +188,7 @@ class _ProgressScreenState extends State<ProgressScreen> {
                       const SizedBox(height: 14),
                     ],
 
-                    if (_moodSpots().length > 1) ...[
+                    if (_moodSpots().isNotEmpty) ...[
                       _moodChart(),
                       const SizedBox(height: 14),
                     ],
@@ -459,7 +459,7 @@ class _ProgressScreenState extends State<ProgressScreen> {
                 ),
                 lineBarsData: [LineChartBarData(
                   spots: spots,
-                  isCurved: true,
+                  isCurved: spots.length > 1,
                   color: color,
                   barWidth: 2.5,
                   dotData: FlDotData(
