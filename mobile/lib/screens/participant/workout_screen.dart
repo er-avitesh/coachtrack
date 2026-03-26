@@ -18,6 +18,8 @@ class _WorkoutScreenState extends State<WorkoutScreen> {
   WorkoutPlan? _plan;
   bool _loading = true;
   int _activeDayIndex = 0;
+  bool _completedToday = false;   // server-confirmed: workout already done today
+  int? _lastCompletedDayId;       // day id of the last completed session
 
   // completedSets: dayIndex -> exerciseIndex -> sets done count
   final Map<int, Map<int, int>> _completedSets = {};
@@ -35,11 +37,28 @@ class _WorkoutScreenState extends State<WorkoutScreen> {
       final res = await _api.get('/workout/get');
       if (res['workout_plan'] != null) {
         _plan = WorkoutPlan.fromJson(res['workout_plan']);
+        _completedToday    = res['completed_today'] == true;
+        _lastCompletedDayId = res['last_completed_day_id'] as int?;
         await _loadPersisted();
+        _setActiveDayFromHistory();
       }
       setState(() {});
     } catch (_) {}
     setState(() => _loading = false);
+  }
+
+  /// Sets _activeDayIndex based on the last server-confirmed session.
+  /// - No history        → Day 0
+  /// - Completed today   → show that day (already done)
+  /// - Last done earlier → advance to next day (round-robin)
+  void _setActiveDayFromHistory() {
+    if (_plan == null || _plan!.days.isEmpty) return;
+    if (_lastCompletedDayId == null) { _activeDayIndex = 0; return; }
+    final lastIdx = _plan!.days.indexWhere((d) => d.id == _lastCompletedDayId);
+    if (lastIdx == -1) { _activeDayIndex = 0; return; }
+    _activeDayIndex = _completedToday
+        ? lastIdx
+        : (lastIdx + 1) % _plan!.days.length;
   }
 
   String _key(String suffix, int dayIndex) =>
@@ -148,8 +167,12 @@ class _WorkoutScreenState extends State<WorkoutScreen> {
   // ── Weight input dialog ──────────────────────────────────────────────────
 
   Future<void> _onSetTap(int dayIndex, int exIdx, int setNum, bool alreadyDone) async {
-    if (alreadyDone) {
-      // Long-press handles undo; single tap on done set does nothing
+    if (alreadyDone) return; // long-press handles undo
+    if (_completedToday && dayIndex == _activeDayIndex) {
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+        content: Text("Today's workout is already logged. See you tomorrow!"),
+        backgroundColor: Colors.green,
+      ));
       return;
     }
     final weight = await _showWeightDialog(setNum);
@@ -474,6 +497,30 @@ class _WorkoutScreenState extends State<WorkoutScreen> {
     final activeDay = _plan!.days[_activeDayIndex];
     final total = activeDay.exercises.length;
     if (total == 0) return const SizedBox.shrink();
+
+    // Server-confirmed done today
+    if (_completedToday) {
+      return Container(
+        padding: const EdgeInsets.all(16),
+        decoration: BoxDecoration(
+          color: Colors.green.shade50,
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(color: Colors.green.shade200),
+        ),
+        child: const Column(children: [
+          Row(mainAxisAlignment: MainAxisAlignment.center, children: [
+            Icon(Icons.emoji_events, color: Colors.green, size: 28),
+            SizedBox(width: 10),
+            Text("Today's workout is done!", style: TextStyle(
+                fontWeight: FontWeight.bold, color: Colors.green, fontSize: 15)),
+          ]),
+          SizedBox(height: 4),
+          Text('Rest up and come back tomorrow 💪',
+              style: TextStyle(fontSize: 12, color: Colors.green)),
+        ]),
+      );
+    }
+
     final done = _completedSets[_activeDayIndex]?.entries
         .where((e) => e.value >= activeDay.exercises[e.key].sets).length ?? 0;
     if (done < total) return const SizedBox.shrink();

@@ -58,7 +58,25 @@ const getWorkout = async (req, res) => {
     );
     if (planResult.rows.length === 0) return res.json({ success: true, workout_plan: null });
     const plan = await getPlanWithDays(planResult.rows[0].id);
-    res.json({ success: true, workout_plan: plan });
+
+    // Last completed session for this plan — drives active day selection on the client
+    const lastSession = await db.query(
+      `SELECT workout_day_id, (completed_at AT TIME ZONE 'UTC')::date::text AS session_date
+       FROM workout_sessions
+       WHERE user_id = $1 AND workout_plan_id = $2
+       ORDER BY completed_at DESC LIMIT 1`,
+      [targetId, plan.id]
+    );
+    const lastRow = lastSession.rows[0];
+    const todayUtc = new Date().toISOString().substring(0, 10);
+    const completedToday = lastRow?.session_date === todayUtc;
+
+    res.json({
+      success: true,
+      workout_plan: plan,
+      last_completed_day_id: lastRow?.workout_day_id ?? null,
+      completed_today: !!completedToday,
+    });
   } catch (err) {
     console.error('Get workout error:', err);
     res.status(500).json({ success: false, message: 'Server error' });
@@ -98,6 +116,20 @@ const saveSession = async (req, res) => {
     if (!set_logs || !Array.isArray(set_logs) || set_logs.length === 0) {
       return res.status(400).json({ success: false, message: 'set_logs array required' });
     }
+
+    // Prevent duplicate sessions — one workout per day per day-slot
+    if (workout_day_id) {
+      const existing = await db.query(
+        `SELECT id FROM workout_sessions
+         WHERE user_id = $1 AND workout_day_id = $2
+           AND (completed_at AT TIME ZONE 'UTC')::date = CURRENT_DATE`,
+        [userId, workout_day_id]
+      );
+      if (existing.rows.length > 0) {
+        return res.json({ success: true, session_id: existing.rows[0].id });
+      }
+    }
+
     const sessionResult = await db.query(
       `INSERT INTO workout_sessions (user_id, workout_plan_id, workout_day_id, day_name)
        VALUES ($1,$2,$3,$4) RETURNING id`,

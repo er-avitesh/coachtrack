@@ -168,7 +168,7 @@ const getClientGoalTracking = async (req, res) => {
 
     // Daily tracking for last 14 days
     const tracking = await db.query(
-      `SELECT date, steps, water_intake_liters, sleep_hours, stress_level, mood
+      `SELECT date, steps, water_intake_liters, sleep_hours, stress_level, mood, deviation_notes
        FROM daily_tracking
        WHERE user_id = $1
          AND date >= CURRENT_DATE - INTERVAL '13 days'
@@ -188,6 +188,15 @@ const getClientGoalTracking = async (req, res) => {
       [clientId]
     );
 
+    // Workout sessions for last 14 days (distinct dates)
+    const workoutDates = await db.query(
+      `SELECT DISTINCT (completed_at AT TIME ZONE 'UTC')::date::text AS session_date
+       FROM workout_sessions
+       WHERE user_id = $1
+         AND completed_at >= CURRENT_DATE - INTERVAL '13 days'`,
+      [clientId]
+    );
+
     // Client name
     const user = await db.query(
       'SELECT full_name FROM users WHERE id = $1',
@@ -199,6 +208,7 @@ const getClientGoalTracking = async (req, res) => {
       client_name: user.rows[0]?.full_name ?? '',
       tracking: tracking.rows,
       lifestyle_plan: lifestyle.rows[0] ?? null,
+      workout_dates: workoutDates.rows.map(r => r.session_date),
     });
   } catch (err) {
     console.error('Goal tracking error:', err);

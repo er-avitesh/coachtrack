@@ -18,6 +18,7 @@ class _ClientGoalTrackingScreenState extends State<ClientGoalTrackingScreen> {
   String _clientName = '';
   List<Map<String, dynamic>> _tracking = [];
   Map<String, dynamic>? _lifestylePlan;
+  List<String> _workoutDates = [];
   bool _loading = true;
 
   // Last 14 days (today = index 0)
@@ -38,9 +39,10 @@ class _ClientGoalTrackingScreenState extends State<ClientGoalTrackingScreen> {
     try {
       final res = await _api.get('/coach/client/${widget.clientId}/goal-tracking');
       setState(() {
-        _clientName   = res['client_name'] ?? '';
-        _tracking     = List<Map<String, dynamic>>.from(res['tracking'] ?? []);
+        _clientName    = res['client_name'] ?? '';
+        _tracking      = List<Map<String, dynamic>>.from(res['tracking'] ?? []);
         _lifestylePlan = res['lifestyle_plan'] as Map<String, dynamic>?;
+        _workoutDates  = List<String>.from(res['workout_dates'] ?? []);
       });
     } catch (_) {}
     setState(() => _loading = false);
@@ -95,6 +97,9 @@ class _ClientGoalTrackingScreenState extends State<ClientGoalTrackingScreen> {
       children: [
         _dateHeaderRow(),
         const SizedBox(height: 8),
+        _workoutRow(),
+        _deviationRow(),
+        if (items.isNotEmpty) const Divider(height: 16),
         ...items.map((item) => _goalRow(item)),
         const SizedBox(height: 20),
         _trackingSection(),
@@ -198,6 +203,75 @@ class _ClientGoalTrackingScreenState extends State<ClientGoalTrackingScreen> {
     );
   }
 
+  Widget _workoutRow() {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 4),
+      child: Row(
+        children: [
+          SizedBox(
+            width: 130,
+            child: Row(
+              children: [
+                const Icon(Icons.fitness_center, color: Colors.green, size: 16),
+                const SizedBox(width: 6),
+                const Text('Workout', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600)),
+              ],
+            ),
+          ),
+          Expanded(
+            child: Row(
+              children: _days.reversed.map((day) {
+                final dateStr = '${day.year}-${day.month.toString().padLeft(2, '0')}-${day.day.toString().padLeft(2, '0')}';
+                final done = _workoutDates.contains(dateStr);
+                return Expanded(child: Center(child: _dot(done ? 1 : 0, true)));
+              }).toList(),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _deviationRow() {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 4),
+      child: Row(
+        children: [
+          SizedBox(
+            width: 130,
+            child: Row(
+              children: [
+                Icon(Icons.warning_amber_rounded, color: Colors.orange.shade600, size: 16),
+                const SizedBox(width: 6),
+                const Text('Deviation', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600)),
+              ],
+            ),
+          ),
+          Expanded(
+            child: Row(
+              children: _days.reversed.map((day) {
+                final t = _trackingFor(day);
+                if (t == null) return Expanded(child: Center(child: _dot(0, true)));
+                final hadDev = (t['deviation_notes'] as String?)?.trim().isNotEmpty == true;
+                return Expanded(
+                  child: Center(
+                    child: hadDev
+                        ? Container(
+                            width: 18, height: 18,
+                            decoration: BoxDecoration(color: Colors.orange.shade400, shape: BoxShape.circle),
+                            child: const Icon(Icons.warning_amber_rounded, size: 11, color: Colors.white),
+                          )
+                        : _dot(1, true), // logged, no deviation = green
+                  ),
+                );
+              }).toList(),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
   // 0 = no data, 1 = done, -1 = missed
   static const _noData = 0;
 
@@ -260,19 +334,44 @@ class _ClientGoalTrackingScreenState extends State<ClientGoalTrackingScreen> {
   }
 
   Widget _trackingRow(Map<String, dynamic> t) {
-    final date   = (t['date'] as String).substring(0, 10);
-    final steps  = _toDouble(t['steps']);
-    final water  = _toDouble(t['water_intake_liters']);
-    final sleep  = _toDouble(t['sleep_hours']);
-    final stress = t['stress_level'];
+    final date      = (t['date'] as String).substring(0, 10);
+    final steps     = _toDouble(t['steps']);
+    final water     = _toDouble(t['water_intake_liters']);
+    final sleep     = _toDouble(t['sleep_hours']);
+    final stress    = t['stress_level'];
+    final deviation = t['deviation_notes'] as String?;
+    final hadDev    = deviation != null && deviation.trim().isNotEmpty;
 
     return Padding(
       padding: const EdgeInsets.only(bottom: 8),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(date,
-              style: const TextStyle(fontSize: 11, color: Color(AppConstants.textSecondary))),
+          Row(
+            children: [
+              Text(date,
+                  style: const TextStyle(fontSize: 11, color: Color(AppConstants.textSecondary))),
+              if (hadDev) ...[
+                const SizedBox(width: 6),
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                  decoration: BoxDecoration(
+                    color: Colors.orange.shade100,
+                    borderRadius: BorderRadius.circular(4),
+                    border: Border.all(color: Colors.orange.shade300, width: 0.8),
+                  ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(Icons.warning_amber_rounded, size: 10, color: Colors.orange.shade700),
+                      const SizedBox(width: 3),
+                      Text('Deviation', style: TextStyle(fontSize: 9, color: Colors.orange.shade700, fontWeight: FontWeight.w600)),
+                    ],
+                  ),
+                ),
+              ],
+            ],
+          ),
           const SizedBox(height: 4),
           Wrap(
             spacing: 6,
