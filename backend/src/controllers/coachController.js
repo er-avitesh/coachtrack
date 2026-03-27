@@ -113,6 +113,15 @@ const getClientSummary = async (req, res) => {
       [clientId]
     );
 
+    // Workout session dates for last 30 days
+    const workoutDates = await db.query(
+      `SELECT DISTINCT (completed_at AT TIME ZONE 'UTC')::date::text AS session_date
+       FROM workout_sessions
+       WHERE user_id = $1
+         AND completed_at >= CURRENT_DATE - INTERVAL '29 days'`,
+      [clientId]
+    );
+
     res.json({
       success: true,
       client: {
@@ -121,6 +130,7 @@ const getClientSummary = async (req, res) => {
         program_end_date:   access.rows[0].program_end_date,
       },
       tracking: tracking.rows,
+      workout_dates: workoutDates.rows.map(r => r.session_date),
       diet_plan: dietPlan.rows[0] || null,
       workout_plan: workoutPlan.rows[0] || null,
       photos: photos.rows,

@@ -21,6 +21,7 @@ class _ClientProfileScreenState extends State<ClientProfileScreen> {
   LifestylePlan? _lifestylePlan;
   List<Tip>      _tips      = [];
   List<Map<String, dynamic>> _tracking = [];
+  Set<String>    _workoutDates = {};
   bool _loading = true;
   DateTime? _programStartDate;
   DateTime? _programEndDate;
@@ -45,6 +46,8 @@ class _ClientProfileScreenState extends State<ClientProfileScreen> {
         _programStartDate = sd != null ? DateTime.tryParse(sd) : null;
         _programEndDate   = ed != null ? DateTime.tryParse(ed) : null;
         _tracking      = List<Map<String,dynamic>>.from(results[0]['tracking'] ?? []);
+        _workoutDates  = Set<String>.from(
+            (results[0]['workout_dates'] as List? ?? []).map((d) => d.toString()));
         _dietPlan      = results[1]['diet_plan'] != null ? DietPlan.fromJson(results[1]['diet_plan']) : null;
         _workoutPlan   = results[2]['workout_plan'] != null ? WorkoutPlan.fromJson(results[2]['workout_plan']) : null;
         _tips          = (results[3]['tips'] as List? ?? []).map((t) => Tip.fromJson(t)).toList();
@@ -145,6 +148,93 @@ class _ClientProfileScreenState extends State<ClientProfileScreen> {
                 ]),
               ),
             ),
+            const SizedBox(height: 14),
+
+            // ── Recent tracking ───────────────────────────────
+            SectionHeader(
+              title: 'Recent Progress',
+              action: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  TextButton.icon(
+                    onPressed: () => context.push('/coach/client/${widget.clientId}/goal-tracking'),
+                    icon: const Icon(Icons.checklist, size: 14),
+                    label: const Text('Goals', style: TextStyle(fontSize: 12)),
+                    style: TextButton.styleFrom(
+                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                      minimumSize: Size.zero,
+                      tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                    ),
+                  ),
+                  TextButton.icon(
+                    onPressed: () => context.push('/coach/client/${widget.clientId}/progress'),
+                    icon: const Icon(Icons.show_chart, size: 14),
+                    label: const Text('Charts', style: TextStyle(fontSize: 12)),
+                    style: TextButton.styleFrom(
+                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                      minimumSize: Size.zero,
+                      tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 8),
+            _tracking.isEmpty
+                ? Card(child: Padding(
+                    padding: const EdgeInsets.all(14),
+                    child: Row(children: [
+                      Icon(Icons.info_outline, color: Colors.grey.shade400, size: 18),
+                      const SizedBox(width: 10),
+                      const Text('No tracking data yet',
+                        style: TextStyle(color: Color(AppConstants.textSecondary), fontSize: 13)),
+                    ]),
+                  ))
+                : Column(children: _tracking.take(7).map((t) {
+                    final dateStr = t['date'].toString().substring(0, 10);
+                    final hasWorkout = _workoutDates.contains(dateStr);
+                    final hasDeviation = (t['deviation_notes'] as String?)?.isNotEmpty == true;
+                    return Card(
+                      margin: const EdgeInsets.only(bottom: 6),
+                      child: Padding(
+                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                        child: Row(children: [
+                          // Date
+                          SizedBox(
+                            width: 62,
+                            child: Text(dateStr,
+                              style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 11)),
+                          ),
+                          const SizedBox(width: 6),
+                          // Steps
+                          if (t['steps'] != null)
+                            _progressChip(Icons.directions_walk, '${t['steps']}', Colors.blue),
+                          if (t['steps'] != null) const SizedBox(width: 4),
+                          // Workout
+                          _progressChip(
+                            Icons.fitness_center,
+                            hasWorkout ? 'Done' : 'Not Done',
+                            hasWorkout ? Colors.green : Colors.red,
+                          ),
+                          const SizedBox(width: 4),
+                          // Sleep
+                          if (t['sleep_hours'] != null)
+                            _progressChip(Icons.bedtime_outlined, '${t['sleep_hours']}h', Colors.indigo),
+                          if (t['sleep_hours'] != null) const SizedBox(width: 4),
+                          // Deviation
+                          _progressChip(
+                            Icons.swap_horiz_rounded,
+                            hasDeviation ? 'Had Deviation' : 'No Deviation',
+                            hasDeviation ? Colors.orange : Colors.teal,
+                          ),
+                          const SizedBox(width: 4),
+                          // Weight (if logged)
+                          if (t['weight_kg'] != null)
+                            _progressChip(Icons.monitor_weight_outlined, '${t['weight_kg']}kg', Colors.purple),
+                        ]),
+                      ),
+                    );
+                  }).toList()),
             const SizedBox(height: 14),
 
             // ── Diet Plan card ────────────────────────────────
@@ -273,61 +363,6 @@ class _ClientProfileScreenState extends State<ClientProfileScreen> {
             )),
             const SizedBox(height: 14),
 
-            // ── Recent tracking ───────────────────────────────
-            SectionHeader(
-              title: 'Recent Progress',
-              action: Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  TextButton.icon(
-                    onPressed: () => context.push('/coach/client/${widget.clientId}/goal-tracking'),
-                    icon: const Icon(Icons.checklist, size: 14),
-                    label: const Text('Goals', style: TextStyle(fontSize: 12)),
-                    style: TextButton.styleFrom(
-                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                      minimumSize: Size.zero,
-                      tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                    ),
-                  ),
-                  TextButton.icon(
-                    onPressed: () => context.push('/coach/client/${widget.clientId}/progress'),
-                    icon: const Icon(Icons.show_chart, size: 14),
-                    label: const Text('Charts', style: TextStyle(fontSize: 12)),
-                    style: TextButton.styleFrom(
-                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                      minimumSize: Size.zero,
-                      tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-            const SizedBox(height: 8),
-            _tracking.isEmpty
-                ? Card(child: Padding(
-                    padding: const EdgeInsets.all(14),
-                    child: Row(children: [
-                      Icon(Icons.info_outline, color: Colors.grey.shade400, size: 18),
-                      const SizedBox(width: 10),
-                      const Text('No tracking data yet',
-                        style: TextStyle(color: Color(AppConstants.textSecondary), fontSize: 13)),
-                    ]),
-                  ))
-                : Column(children: _tracking.take(7).map((t) => Card(
-                    margin: const EdgeInsets.only(bottom: 6),
-                    child: Padding(
-                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-                      child: Row(children: [
-                        Text(t['date'].toString().substring(0, 10),
-                          style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 12)),
-                        const Spacer(),
-                        if (t['weight_kg'] != null)    _chip('${t['weight_kg']}kg', Colors.purple),
-                        if (t['steps'] != null) ...[    const SizedBox(width: 5), _chip('${t['steps']} steps', Colors.green)],
-                        if (t['mood'] != null) ...[     const SizedBox(width: 5), _chip(t['mood'], Colors.orange)],
-                        if (t['stress_level'] != null)...[const SizedBox(width: 5), _chip('stress ${t['stress_level']}', Colors.red)],
-                      ]),
-                    ),
-                  )).toList()),
             const SizedBox(height: 20),
           ],
         ),
@@ -699,11 +734,15 @@ class _ClientProfileScreenState extends State<ClientProfileScreen> {
     );
   }
 
-  Widget _chip(String text, Color color) {
+  Widget _progressChip(IconData icon, String text, Color color) {
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
+      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 3),
       decoration: BoxDecoration(color: color.withValues(alpha: 0.1), borderRadius: BorderRadius.circular(7)),
-      child: Text(text, style: TextStyle(fontSize: 10, color: color, fontWeight: FontWeight.w500)),
+      child: Row(mainAxisSize: MainAxisSize.min, children: [
+        Icon(icon, size: 11, color: color),
+        const SizedBox(width: 3),
+        Text(text, style: TextStyle(fontSize: 10, color: color, fontWeight: FontWeight.w500)),
+      ]),
     );
   }
 
